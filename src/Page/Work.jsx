@@ -17,6 +17,9 @@ import {
   AlertCircle,
   RefreshCw,
 } from "lucide-react"
+import ReusableTable from "../components/ReusableTable"
+
+
 
 // Constants
 const API_BASE_URL = "https://curin-backend.onrender.com/api"
@@ -169,6 +172,132 @@ const getStatusBadge = (status) => {
 }
 
 export default function Work() {
+   const columns = [
+    {
+      header: "Sr No.",
+      render: (_, index) => (
+        <div className="flex items-center gap-2">
+          <Hash size={14} className="text-gray-400" aria-hidden="true" />
+          {index + 1}
+        </div>
+      ),
+      className: "w-16"
+    },
+    {
+      header: "Name",
+      render: (task) => (
+        <div>
+          <div className="font-medium text-gray-900">{task.taskName}</div>
+          {task.description && (
+            <div
+              className="text-sm text-gray-500 mt-1 max-w-xs truncate"
+              title={task.description}
+            >
+              {task.description}
+            </div>
+          )}
+        </div>
+      ),
+      className: "min-w-[200px]"
+    },
+    {
+      header: "Employees",
+      render: (task) => (
+        <ArrayDisplay
+          items={task.employeesAssigned}
+          taskId={task._id}
+          type="employees"
+          icon={Users}
+          emptyText="No employees"
+        />
+      ),
+      className: "min-w-[150px]"
+    },
+    {
+      header: "Industries",
+      render: (task) => (
+        <ArrayDisplay
+          items={task.industriesInvolved}
+          taskId={task._id}
+          type="industries"
+          icon={Briefcase}
+          emptyText="No industries"
+        />
+      ),
+      className: "min-w-[150px]"
+    },
+    {
+      header: "Organizations",
+      render: (task) => (
+        <ArrayDisplay
+          items={task.partnerOrganizations}
+          taskId={task._id}
+          type="organizations"
+          icon={Building2}
+          emptyText="No organizations"
+        />
+      ),
+      className: "min-w-[150px]"
+    },
+    {
+      header: "Status",
+      render: (task) => getStatusBadge(task.status),
+      className: "min-w-[100px] whitespace-nowrap"
+    },
+    {
+      header: "Remarks",
+      render: (task) => (
+        <div className="text-sm text-gray-700 max-w-xs">
+          {task.remarks ? (
+            <span className="truncate block" title={task.remarks}>
+              {task.remarks}
+            </span>
+          ) : (
+            <span className="text-gray-400 italic">No remarks</span>
+          )}
+        </div>
+      ),
+      className: "min-w-[150px]"
+    },
+    {
+      header: "Start Date",
+      render: (task) => (
+        <div className="flex items-center gap-2 text-sm text-gray-700">
+          <Calendar size={14} className="text-green-600" aria-hidden="true" />
+          <span>{formatDate(task.startDate)}</span>
+        </div>
+      ),
+      className: "min-w-[180px]"
+    },
+    {
+      header: "Deadline",
+      render: (task) => (
+        <div className="flex items-center gap-2 text-sm text-gray-700">
+          <Calendar size={14} className="text-red-600" aria-hidden="true" />
+          <span>{formatDate(task.endDate)}</span>
+        </div>
+      ),
+      className: "min-w-[180px]"
+    },
+    {
+      header: "Actions",
+      render: (task) => (
+        <button
+          className="inline-flex items-center gap-2 px-3 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+          onClick={() => {
+            setSelectedTask(task)
+            setStatus(task.status)
+            setRemarks(task.remarks || "")
+          }}
+          aria-label={`Update task: ${task.taskName}`}
+        >
+          <Edit3 size={16} />
+          Update
+        </button>
+      ),
+      className: "min-w-[100px] whitespace-nowrap"
+    }
+  ]
   const [selectedTask, setSelectedTask] = useState(null)
   const [status, setStatus] = useState("")
   const [remarks, setRemarks] = useState("")
@@ -259,6 +388,7 @@ export default function Work() {
   }, [selectedTask])
 
   // Memoized components for better performance
+  // eslint-disable-next-line no-unused-vars
   const ArrayDisplay = useCallback(({ items, taskId, type, icon: Icon, emptyText = "-" }) => {
     if (!items || items.length === 0) {
       return <span className="text-gray-500">{emptyText}</span>
@@ -385,160 +515,12 @@ export default function Work() {
         </div>
 
         {/* Tasks Table */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[800px]" role="table">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th scope="col" className="px-4 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
-                    Sr No.
-                  </th>
-                  <th scope="col" className="px-4 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[200px]">
-                    Name
-                  </th>
-                  <th scope="col" className="px-4 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[150px]">
-                    Employees
-                  </th>
-                  <th scope="col" className="px-4 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[150px]">
-                    Industries
-                  </th>
-                  <th scope="col" className="px-4 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[150px]">
-                    Organizations
-                  </th>
-                  <th scope="col" className="px-4 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
-                    Status
-                  </th>
-                  <th scope="col" className="px-4 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[150px]">
-                    Remarks
-                  </th>
-                  <th scope="col" className="px-4 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[180px]">
-                    Start Date
-                  </th>
-                  <th scope="col" className="px-4 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[180px]">
-                    Deadline
-                  </th>
-                  <th scope="col" className="px-4 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px]">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filteredTasks.map((task, index) => (
-                  <tr key={task._id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-4 py-4 text-sm text-gray-900 font-medium">
-                      <div className="flex items-center gap-2">
-                        <Hash size={14} className="text-gray-400" aria-hidden="true" />
-                        {index + 1}
-                      </div>
-                    </td>
-
-                    <td className="px-4 py-4">
-                      <div className="font-medium text-gray-900">{task.taskName}</div>
-                      {task.description && (
-                        <div className="text-sm text-gray-500 mt-1 max-w-xs truncate" title={task.description}>
-                          {task.description}
-                        </div>
-                      )}
-                    </td>
-
-                    <td className="px-4 py-4">
-                      <ArrayDisplay
-                        items={task.employeesAssigned}
-                        taskId={task._id}
-                        type="employees"
-                        icon={Users}
-                        emptyText="No employees"
-                      />
-                    </td>
-
-                    <td className="px-4 py-4">
-                      <ArrayDisplay
-                        items={task.industriesInvolved}
-                        taskId={task._id}
-                        type="industries"
-                        icon={Briefcase}
-                        emptyText="No industries"
-                      />
-                    </td>
-
-                    <td className="px-4 py-4">
-                      <ArrayDisplay
-                        items={task.partnerOrganizations}
-                        taskId={task._id}
-                        type="organizations"
-                        icon={Building2}
-                        emptyText="No organizations"
-                      />
-                    </td>
-
-                    <td className="px-4 py-4 whitespace-nowrap">{getStatusBadge(task.status)}</td>
-
-                    <td className="px-4 py-4">
-                      <div className="text-sm text-gray-700 max-w-xs">
-                        {task.remarks ? (
-                          <span className="truncate block" title={task.remarks}>
-                            {task.remarks}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400 italic">No remarks</span>
-                        )}
-                      </div>
-                    </td>
-
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-2 text-sm text-gray-700">
-                        <Calendar size={14} className="text-green-600" aria-hidden="true" />
-                        <span>{formatDate(task.startDate)}</span>
-                      </div>
-                    </td>
-
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-2 text-sm text-gray-700">
-                        <Calendar size={14} className="text-red-600" aria-hidden="true" />
-                        <span>{formatDate(task.endDate)}</span>
-                      </div>
-                    </td>
-
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <button
-                        className="inline-flex items-center gap-2 px-3 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-                        onClick={() => {
-                          setSelectedTask(task)
-                          setStatus(task.status)
-                          setRemarks(task.remarks || "")
-                        }}
-                        aria-label={`Update task: ${task.taskName}`}
-                      >
-                        <Edit3 size={16} />
-                        Update
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {filteredTasks.length === 0 && (
-            <div className="text-center py-12">
-              <div className="text-gray-400 mb-2">
-                <Search size={48} className="mx-auto" />
-              </div>
-              <p className="text-gray-500">No tasks found matching your criteria</p>
-              {(searchTerm || statusFilter !== "all") && (
-                <button
-                  onClick={() => {
-                    setSearchTerm("")
-                    setStatusFilter("all")
-                  }}
-                  className="mt-2 text-blue-600 hover:text-blue-800 text-sm"
-                >
-                  Clear filters
-                </button>
-              )}
-            </div>
-          )}
-        </div>
+        <ReusableTable
+          columns={columns}
+          data={filteredTasks}
+          emptyText="No tasks found"
+          minWidth="1000px"
+        />
       </div>
 
       {/* Status Update Modal */}
@@ -586,6 +568,7 @@ export default function Work() {
                 </div>
               </div>
             </div>
+            
 
             <div className="p-6 space-y-6">
               <div>
@@ -613,6 +596,7 @@ export default function Work() {
                   })}
                 </div>
               </div>
+              
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-3">
@@ -659,10 +643,14 @@ export default function Work() {
                   ) : (
                     "Save Changes"
                   )}
+
                 </button>
+
+                
               </div>
             </div>
           </div>
+          
         </div>
       )}
     </div>
