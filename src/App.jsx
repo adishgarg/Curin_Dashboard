@@ -7,6 +7,7 @@ import Work from "./Page/Work"
 import CreateTaskPage from "./Page/CreateTaskPage"
 import Home from "./Page/Home"
 import Profile from "./Page/Profile"
+import Settings from "./Page/Settings"
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -25,6 +26,8 @@ function App() {
               <Route path="/work-progress" element={<Work />} />
               <Route path="/create-task" element={<CreateTaskPage />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/settings" element={<Settings />} />
+
             </Routes>
           </div>
         </div>

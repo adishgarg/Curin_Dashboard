@@ -64,7 +64,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
       >
         {/* Header */}
         <div className="p-6 border-b border-gray-100">
-          <h1 className="text-xl font-bold text-gray-800">TaskFlow</h1>
+          <h1 className="text-xl font-bold text-gray-800">Curin</h1>
         </div>
 
         {/* Navigation */}

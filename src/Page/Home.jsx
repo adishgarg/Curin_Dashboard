@@ -210,7 +210,7 @@ export default function Home() {
       <div className="bg-white border-b border-gray-200 px-4 lg:px-6 py-6">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-2xl lg:text-3xl font-semibold text-gray-900 mb-2">
-            Welcome to WorkFlow
+            Welcome to Curin
           </h1>
           <p className="text-gray-600">
             Manage your tasks efficiently and track progress seamlessly
