@@ -45,7 +45,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
 
   return (
     <>
-      {/* ✅ Keep only one Mobile Menu Button */}
+      {/* Mobile Menu Button */}
       <button
         className="fixed top-4 left-4 z-50 lg:hidden p-3 rounded-xl bg-white shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-200"
         onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -56,7 +56,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
       {/* Sidebar */}
       <div
         className={`
-          fixed lg:static inset-y-0 left-0 z-40 w-72 bg-white shadow-xl border-r border-gray-200
+          fixed inset-y-0 left-0 z-40 w-72 bg-white shadow-xl border-r border-gray-200
           transform transition-transform duration-300 ease-in-out
           ${sidebarOpen || !isMobile ? "translate-x-0" : "-translate-x-full"}
           lg:translate-x-0
@@ -64,103 +64,105 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
       >
         {/* Header */}
         <div className="p-6 border-b border-gray-100">
-          {/* You can add logo/title here */}
+          <h1 className="text-xl font-bold text-gray-800">TaskFlow</h1>
         </div>
 
         {/* Navigation */}
-        <nav className="p-4 space-y-2">
-          {menus.map((menu) => {
-            const isActive = location.pathname === menu.href
-            return (
+        <div className="flex-1 overflow-y-auto">
+          <nav className="p-4 space-y-2">
+            {menus.map((menu) => {
+              const isActive = location.pathname === menu.href
+              return (
+                <button
+                  key={menu.href}
+                  onClick={() => handleNavigation(menu.href)}
+                  className={`
+                    w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
+                    group relative overflow-hidden
+                    ${
+                      isActive
+                        ? "bg-blue-50 text-blue-700 shadow-sm border border-blue-100"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    }
+                  `}
+                >
+                  <menu.icon
+                    size={20}
+                    className={isActive ? "text-blue-600" : "text-gray-400 group-hover:text-gray-600"}
+                  />
+                  <span className="font-medium">{menu.name}</span>
+                  {isActive && <ChevronRight size={16} className="ml-auto text-blue-600" />}
+                </button>
+              )
+            })}
+
+            <div className="space-y-1">
               <button
-                key={menu.href}
-                onClick={() => handleNavigation(menu.href)}
+                onClick={handleWorkProgressToggle}
                 className={`
                   w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
                   group relative overflow-hidden
                   ${
-                    isActive
+                    location.pathname === "/work-progress" || location.pathname === "/create-task"
                       ? "bg-blue-50 text-blue-700 shadow-sm border border-blue-100"
                       : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                   }
                 `}
               >
-                <menu.icon
+                <BarChart3
                   size={20}
-                  className={isActive ? "text-blue-600" : "text-gray-400 group-hover:text-gray-600"}
+                  className={
+                    location.pathname === "/work-progress" || location.pathname === "/create-task"
+                      ? "text-blue-600"
+                      : "text-gray-400 group-hover:text-gray-600"
+                  }
                 />
-                <span className="font-medium">{menu.name}</span>
-                {isActive && <ChevronRight size={16} className="ml-auto text-blue-600" />}
+                <span className="font-medium">Work Progress</span>
+                <ChevronDown
+                  size={16}
+                  className={`ml-auto transition-transform duration-200 ${workProgressOpen ? "rotate-180" : ""} ${
+                    location.pathname === "/work-progress" || location.pathname === "/create-task"
+                      ? "text-blue-600"
+                      : "text-gray-400"
+                  }`}
+                />
               </button>
-            )
-          })}
 
-          <div className="space-y-1">
-            <button
-              onClick={handleWorkProgressToggle}
-              className={`
-                w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
-                group relative overflow-hidden
-                ${
-                  location.pathname === "/work-progress" || location.pathname === "/create-task"
-                    ? "bg-blue-50 text-blue-700 shadow-sm border border-blue-100"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                }
-              `}
-            >
-              <BarChart3
-                size={20}
-                className={
-                  location.pathname === "/work-progress" || location.pathname === "/create-task"
-                    ? "text-blue-600"
-                    : "text-gray-400 group-hover:text-gray-600"
-                }
-              />
-              <span className="font-medium">Work Progress</span>
-              <ChevronDown
-                size={16}
-                className={`ml-auto transition-transform duration-200 ${workProgressOpen ? "rotate-180" : ""} ${
-                  location.pathname === "/work-progress" || location.pathname === "/create-task"
-                    ? "text-blue-600"
-                    : "text-gray-400"
+              <div
+                className={`overflow-hidden transition-all duration-200 ${
+                  workProgressOpen ? "max-h-32 opacity-100" : "max-h-0 opacity-0"
                 }`}
-              />
-            </button>
-
-            <div
-              className={`overflow-hidden transition-all duration-200 ${
-                workProgressOpen ? "max-h-32 opacity-100" : "max-h-0 opacity-0"
-              }`}
-            >
-              <div className="ml-4 space-y-1">
-                {workProgressSubmenu.map((submenu) => {
-                  const isActive = location.pathname === submenu.href
-                  return (
-                    <button
-                      key={submenu.href}
-                      onClick={() => handleNavigation(submenu.href)}
-                      className={`
-                        w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200
-                        text-sm
-                        ${
-                          isActive
-                            ? "bg-blue-50 text-blue-700 border-l-2 border-blue-600"
-                            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                        }
-                      `}
-                    >
-                      <submenu.icon
-                        size={16}
-                        className={isActive ? "text-blue-600" : "text-gray-400 group-hover:text-gray-600"}
-                      />
-                      <span className="font-medium">{submenu.name}</span>
-                    </button>
-                  )
-                })}
+              >
+                <div className="ml-4 space-y-1">
+                  {workProgressSubmenu.map((submenu) => {
+                    const isActive = location.pathname === submenu.href
+                    return (
+                      <button
+                        key={submenu.href}
+                        onClick={() => handleNavigation(submenu.href)}
+                        className={`
+                          w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200
+                          text-sm
+                          ${
+                            isActive
+                              ? "bg-blue-50 text-blue-700 border-l-2 border-blue-600"
+                              : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                          }
+                        `}
+                      >
+                        <submenu.icon
+                          size={16}
+                          className={isActive ? "text-blue-600" : "text-gray-400 group-hover:text-gray-600"}
+                        />
+                        <span className="font-medium">{submenu.name}</span>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
             </div>
-          </div>
-        </nav>
+          </nav>
+        </div>
 
         {/* User Profile */}
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-100 bg-gray-50">
