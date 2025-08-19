@@ -324,7 +324,7 @@ export default function CreateTaskPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Calendar className="inline w-4 h-4 mr-1" />
-                End Date
+                Deadline
               </label>
               <input
                 type="datetime-local"
