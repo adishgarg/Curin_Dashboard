@@ -142,11 +142,10 @@ export default function AddUsersPage() {
         {/* Success/Error Message */}
         {message && (
           <div
-            className={`mb-6 p-4 rounded-xl flex items-center gap-3 ${
-              isSuccess
+            className={`mb-6 p-4 rounded-xl flex items-center gap-3 ${isSuccess
                 ? "bg-green-50 border border-green-200 text-green-800"
                 : "bg-red-50 border border-red-200 text-red-800"
-            }`}
+              }`}
           >
             {isSuccess ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
             <span className="font-medium">{message}</span>
@@ -195,34 +194,34 @@ export default function AddUsersPage() {
             />
           </FormField>
 
-    <FormField label="Designation" icon={Briefcase} required>
-  <Select
-    options={[
-      { value: "User", label: "User" },
-      { value: "PPI", label: "PPI" },
-    ]}
-    value={{ value: formData.designation, label: formData.designation }}
-    onChange={(opt) => updateFormData("designation", opt.value)}
-    placeholder="Select designation"
-  />
-</FormField>
+          <FormField label="Designation" icon={Briefcase} required>
+            <Select
+              options={[
+                { value: "User", label: "User" },
+                { value: "PPI", label: "PPI" },
+              ]}
+              value={{ value: formData.designation, label: formData.designation }}
+              onChange={(opt) => updateFormData("designation", opt.value)}
+              placeholder="Select designation"
+            />
+          </FormField>
 
-{formData.designation === "PPI" && (
-  <div className="flex items-center gap-2 p-3 border rounded-lg bg-yellow-50">
-    <input
-      type="checkbox"
-      checked={formData.confirmPPI}
-      onChange={(e) => updateFormData("confirmPPI", e.target.checked)}
-      id="confirmPPI"
-      className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-    />
-    <label htmlFor="confirmPPI" className="text-sm text-gray-700">
-      I confirm I want to make this user a <strong>PPI</strong>.
-    </label>
-  </div>
-)}
+          {formData.designation === "PPI" && (
+            <div className="flex items-center gap-2 p-3 border rounded-lg bg-yellow-50">
+              <input
+                type="checkbox"
+                checked={formData.confirmPPI}
+                onChange={(e) => updateFormData("confirmPPI", e.target.checked)}
+                id="confirmPPI"
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <label htmlFor="confirmPPI" className="text-sm text-gray-700">
+                I confirm I want to make this user a <strong>PPI</strong>.
+              </label>
+            </div>
+          )}
 
-     
+
 
           <FormField label="Organization" icon={Building2} required>
             <Select
