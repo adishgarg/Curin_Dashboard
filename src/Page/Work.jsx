@@ -1,3 +1,5 @@
+"use client"
+
 import { useEffect, useState, useCallback, useMemo, useRef } from "react"
 import {
   Edit3,
@@ -16,10 +18,10 @@ import {
   Loader2,
   AlertCircle,
   RefreshCw,
+  Eye,
+  MessageSquare,
 } from "lucide-react"
 import ReusableTable from "../components/ReusableTable"
-
-
 
 // Constants
 const API_BASE_URL = "https://curin-backend.onrender.com/api"
@@ -31,23 +33,29 @@ const DEFAULT_DATE_RANGE = {
 
 // Status configuration
 const STATUS_CONFIG = {
-  active: { 
-    icon: Clock, 
-    color: "bg-blue-50 text-blue-700 border-blue-200", 
+  active: {
+    icon: Clock,
+    color: "bg-blue-50 text-blue-700 border-blue-200",
     text: "Active",
-    buttonColor: "border-blue-500 bg-blue-50 text-blue-700"
+    buttonColor: "border-blue-500 bg-blue-50 text-blue-700",
   },
-  completed: { 
-    icon: CheckCircle, 
-    color: "bg-green-50 text-green-700 border-green-200", 
+  completed: {
+    icon: CheckCircle,
+    color: "bg-green-50 text-green-700 border-green-200",
     text: "Completed",
-    buttonColor: "border-green-500 bg-green-50 text-green-700"
+    buttonColor: "border-green-500 bg-green-50 text-green-700",
   },
-  cancelled: { 
-    icon: XCircle, 
-    color: "bg-red-50 text-red-700 border-red-200", 
+  cancelled: {
+    icon: XCircle,
+    color: "bg-red-50 text-red-700 border-red-200",
     text: "Cancelled",
-    buttonColor: "border-red-500 bg-red-50 text-red-700"
+    buttonColor: "border-red-500 bg-red-50 text-red-700",
+  },
+  remarks: {
+    icon: MessageSquare,
+    color: "bg-yellow-50 text-yellow-700 border-yellow-200",
+    text: "Add Remarks",
+    buttonColor: "border-yellow-500 bg-yellow-50 text-yellow-700",
   },
 }
 
@@ -77,13 +85,13 @@ const useTasksData = () => {
   const fetchTasks = useCallback(async () => {
     setLoading(true)
     setError(null)
-    
+
     try {
       const response = await fetch(`${API_BASE_URL}/tasks/`)
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
       }
-      
+
       const data = await response.json()
       if (data.status === "success") {
         const tasksWithDates = data.data.tasks.map((task) => ({
@@ -104,9 +112,7 @@ const useTasksData = () => {
   }, [])
 
   const updateTask = useCallback((taskId, updates) => {
-    setTasks(prev => prev.map(task => 
-      task._id === taskId ? { ...task, ...updates } : task
-    ))
+    setTasks((prev) => prev.map((task) => (task._id === taskId ? { ...task, ...updates } : task)))
   }, [])
 
   useEffect(() => {
@@ -125,16 +131,17 @@ const useTaskFiltering = (tasks, searchTerm, statusFilter) => {
 
     if (debouncedSearchTerm) {
       const lowerSearch = debouncedSearchTerm.toLowerCase()
-      filtered = filtered.filter(task => 
-        task.taskName.toLowerCase().includes(lowerSearch) ||
-        task.partnerOrganizations?.some(p => p.name.toLowerCase().includes(lowerSearch)) ||
-        task.employeesAssigned?.some(e => e.name.toLowerCase().includes(lowerSearch)) ||
-        task.industriesInvolved?.some(i => i.name.toLowerCase().includes(lowerSearch))
+      filtered = filtered.filter(
+        (task) =>
+          task.taskName.toLowerCase().includes(lowerSearch) ||
+          task.partnerOrganizations?.some((p) => p.name.toLowerCase().includes(lowerSearch)) ||
+          task.employeesAssigned?.some((e) => e.name.toLowerCase().includes(lowerSearch)) ||
+          task.industriesInvolved?.some((i) => i.name.toLowerCase().includes(lowerSearch)),
       )
     }
 
     if (statusFilter !== "all") {
-      filtered = filtered.filter(task => task.status === statusFilter)
+      filtered = filtered.filter((task) => task.status === statusFilter)
     }
 
     return filtered
@@ -172,7 +179,15 @@ const getStatusBadge = (status) => {
 }
 
 export default function Work() {
-   const columns = [
+  const [selectedTask, setSelectedTask] = useState(null)
+  const [status, setStatus] = useState("")
+  const [remarks, setRemarks] = useState("")
+  const [searchTerm, setSearchTerm] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [dropdownStates, setDropdownStates] = useState({})
+  const [updateLoading, setUpdateLoading] = useState(false)
+
+  const columns = [
     {
       header: "Sr No.",
       render: (_, index) => (
@@ -181,7 +196,7 @@ export default function Work() {
           {index + 1}
         </div>
       ),
-      className: "w-16"
+      className: "w-16",
     },
     {
       header: "Name",
@@ -189,16 +204,13 @@ export default function Work() {
         <div>
           <div className="font-medium text-gray-900">{task.taskName}</div>
           {task.description && (
-            <div
-              className="text-sm text-gray-500 mt-1 max-w-xs truncate"
-              title={task.description}
-            >
+            <div className="text-sm text-gray-500 mt-1 max-w-xs truncate" title={task.description}>
               {task.description}
             </div>
           )}
         </div>
       ),
-      className: "min-w-[200px]"
+      className: "min-w-[200px]",
     },
     {
       header: "Employees",
@@ -211,7 +223,7 @@ export default function Work() {
           emptyText="No employees"
         />
       ),
-      className: "min-w-[150px]"
+      className: "min-w-[150px]",
     },
     {
       header: "Industries",
@@ -224,7 +236,7 @@ export default function Work() {
           emptyText="No industries"
         />
       ),
-      className: "min-w-[150px]"
+      className: "min-w-[150px]",
     },
     {
       header: "Organizations",
@@ -237,12 +249,12 @@ export default function Work() {
           emptyText="No organizations"
         />
       ),
-      className: "min-w-[150px]"
+      className: "min-w-[150px]",
     },
     {
       header: "Status",
       render: (task) => getStatusBadge(task.status),
-      className: "min-w-[100px] whitespace-nowrap"
+      className: "min-w-[100px] whitespace-nowrap",
     },
     {
       header: "Remarks",
@@ -257,7 +269,7 @@ export default function Work() {
           )}
         </div>
       ),
-      className: "min-w-[150px]"
+      className: "min-w-[150px]",
     },
     {
       header: "Start Date",
@@ -267,7 +279,7 @@ export default function Work() {
           <span>{formatDate(task.startDate)}</span>
         </div>
       ),
-      className: "min-w-[180px]"
+      className: "min-w-[180px]",
     },
     {
       header: "Deadline",
@@ -277,8 +289,9 @@ export default function Work() {
           <span>{formatDate(task.endDate)}</span>
         </div>
       ),
-      className: "min-w-[180px]"
+      className: "min-w-[180px]",
     },
+    
     {
       header: "Actions",
       render: (task) => (
@@ -295,17 +308,10 @@ export default function Work() {
           Update
         </button>
       ),
-      className: "min-w-[100px] whitespace-nowrap"
-    }
+      className: "min-w-[100px] whitespace-nowrap",
+    },
   ]
-  const [selectedTask, setSelectedTask] = useState(null)
-  const [status, setStatus] = useState("")
-  const [remarks, setRemarks] = useState("")
-  const [searchTerm, setSearchTerm] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
-  const [dropdownStates, setDropdownStates] = useState({})
-  const [updateLoading, setUpdateLoading] = useState(false)
-  
+
   const { tasks, loading, error, refetch, updateTask } = useTasksData()
   const filteredTasks = useTaskFiltering(tasks, searchTerm, statusFilter)
   const modalRef = useRef(null)
@@ -313,7 +319,7 @@ export default function Work() {
   // Optimized dropdown toggle
   const toggleDropdown = useCallback((taskId, type) => {
     const key = `${taskId}-${type}`
-    setDropdownStates(prev => ({
+    setDropdownStates((prev) => ({
       ...prev,
       [key]: !prev[key],
     }))
@@ -322,125 +328,148 @@ export default function Work() {
   // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (!event.target.closest('[data-dropdown]')) {
+      if (!event.target.closest("[data-dropdown]")) {
         setDropdownStates({})
       }
     }
 
-    document.addEventListener('click', handleClickOutside)
-    return () => document.removeEventListener('click', handleClickOutside)
+    document.addEventListener("click", handleClickOutside)
+    return () => document.removeEventListener("click", handleClickOutside)
   }, [])
 
   // Optimized task update handler
-  const handleUpdate = useCallback(async (taskId) => {
-    if (!status) {
-      alert("Please select status")
-      return
-    }
-    if (status === "cancelled" && !remarks.trim()) {
-      alert("Remarks are required when cancelling a task")
-      return
-    }
+  const handleUpdate = useCallback(
+    async (taskId) => {
+      if (!status) {
+        alert("Please select an option")
+        return
+      }
+      if (status === "cancelled" && !remarks.trim()) {
+        alert("Remarks are required when cancelling a task")
+        return
+      }
+      if (status === "remarks" && !remarks.trim()) {
+        alert("Please add remarks")
+        return
+      }
 
-    setUpdateLoading(true)
-    try {
-      const response = await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          status,
+      setUpdateLoading(true)
+      try {
+        const updateData = {
           remarks,
           modifiedBy: "AdminUser", // Replace with logged-in user
-        }),
-      })
+        }
 
-      const result = await response.json()
-      if (result.status === "success") {
-        updateTask(taskId, { status, remarks })
-        setSelectedTask(null)
-        setStatus("")
-        setRemarks("")
-        // Show success notification instead of alert
-        console.log("Task updated successfully")
-      } else {
-        throw new Error(result.message || "Failed to update task")
+        if (status === "remarks") {
+          updateData.status = "active"
+        } else {
+          updateData.status = status
+        }
+
+        const response = await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updateData),
+        })
+
+        const result = await response.json()
+        if (result.status === "success") {
+          const updates = { remarks }
+          if (status === "remarks") {
+            updates.status = "active"
+          } else {
+            updates.status = status
+          }
+          updateTask(taskId, updates)
+
+          setSelectedTask(null)
+          setStatus("")
+          setRemarks("")
+          console.log("Task updated successfully")
+        } else {
+          throw new Error(result.message || "Failed to update task")
+        }
+      } catch (err) {
+        console.error("Error updating task:", err)
+        alert("Error: " + err.message)
+      } finally {
+        setUpdateLoading(false)
       }
-    } catch (err) {
-      console.error("Error updating task:", err)
-      alert("Error: " + err.message)
-    } finally {
-      setUpdateLoading(false)
-    }
-  }, [status, remarks, updateTask])
+    },
+    [status, remarks, updateTask],
+  )
 
   // Keyboard navigation for modal
   useEffect(() => {
     const handleKeyDown = (event) => {
-      if (event.key === 'Escape' && selectedTask) {
+      if (event.key === "Escape" && selectedTask) {
         setSelectedTask(null)
       }
     }
 
     if (selectedTask) {
-      document.addEventListener('keydown', handleKeyDown)
-      return () => document.removeEventListener('keydown', handleKeyDown)
+      document.addEventListener("keydown", handleKeyDown)
+      return () => document.removeEventListener("keydown", handleKeyDown)
     }
   }, [selectedTask])
 
   // Memoized components for better performance
   // eslint-disable-next-line no-unused-vars
-  const ArrayDisplay = useCallback(({ items, taskId, type, icon: Icon, emptyText = "-" }) => {
-    if (!items || items.length === 0) {
-      return <span className="text-gray-500">{emptyText}</span>
-    }
+  const ArrayDisplay = useCallback(
+    ({ items, taskId, type, icon: Icon, emptyText = "-" }) => {
+      if (!items || items.length === 0) {
+        return <span className="text-gray-500">{emptyText}</span>
+      }
 
-    const key = `${taskId}-${type}`
-    const isOpen = dropdownStates[key]
-    const displayItems = Array.isArray(items) ? items : []
+      const key = `${taskId}-${type}`
+      const isOpen = dropdownStates[key]
+      const displayItems = Array.isArray(items) ? items : []
 
-    if (displayItems.length === 1) {
-      const item = displayItems[0]
+      if (displayItems.length === 1) {
+        const item = displayItems[0]
+        return (
+          <div className="flex items-center gap-2 text-sm text-gray-700">
+            <Icon size={14} className="text-gray-500" aria-hidden="true" />
+            <span>{typeof item === "object" ? item.name : item}</span>
+          </div>
+        )
+      }
+
       return (
-        <div className="flex items-center gap-2 text-sm text-gray-700">
-          <Icon size={14} className="text-gray-500" aria-hidden="true" />
-          <span>{typeof item === "object" ? item.name : item}</span>
+        <div className="relative" data-dropdown>
+          <button
+            onClick={() => toggleDropdown(taskId, type)}
+            className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded"
+            aria-expanded={isOpen}
+            aria-haspopup="true"
+          >
+            <Icon size={14} className="text-gray-500" aria-hidden="true" />
+            <span>
+              {displayItems.length} {type}
+            </span>
+            <ChevronDown
+              size={12}
+              className={`transition-transform ${isOpen ? "rotate-180" : ""}`}
+              aria-hidden="true"
+            />
+          </button>
+
+          {isOpen && (
+            <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-48">
+              <div className="p-2 max-h-32 overflow-y-auto">
+                {displayItems.map((item, index) => (
+                  <div key={index} className="px-2 py-1 text-sm text-gray-700 hover:bg-gray-50 rounded">
+                    {typeof item === "object" ? item.name : item}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )
-    }
-
-    return (
-      <div className="relative" data-dropdown>
-        <button
-          onClick={() => toggleDropdown(taskId, type)}
-          className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded"
-          aria-expanded={isOpen}
-          aria-haspopup="true"
-        >
-          <Icon size={14} className="text-gray-500" aria-hidden="true" />
-          <span>
-            {displayItems.length} {type}
-          </span>
-          <ChevronDown 
-            size={12} 
-            className={`transition-transform ${isOpen ? "rotate-180" : ""}`}
-            aria-hidden="true"
-          />
-        </button>
-
-        {isOpen && (
-          <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-48">
-            <div className="p-2 max-h-32 overflow-y-auto">
-              {displayItems.map((item, index) => (
-                <div key={index} className="px-2 py-1 text-sm text-gray-700 hover:bg-gray-50 rounded">
-                  {typeof item === "object" ? item.name : item}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    )
-  }, [dropdownStates, toggleDropdown])
+    },
+    [dropdownStates, toggleDropdown],
+  )
 
   // Loading component
   const LoadingSpinner = () => (
@@ -515,21 +544,16 @@ export default function Work() {
         </div>
 
         {/* Tasks Table */}
-        <ReusableTable
-          columns={columns}
-          data={filteredTasks}
-          emptyText="No tasks found"
-          minWidth="1000px"
-        />
+        <ReusableTable columns={columns} data={filteredTasks} emptyText="No tasks found" minWidth="1000px" />
       </div>
 
       {/* Status Update Modal */}
       {selectedTask && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+        <div
+           className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50"
           onClick={(e) => e.target === e.currentTarget && setSelectedTask(null)}
         >
-          <div 
+          <div
             ref={modalRef}
             className="bg-white rounded-2xl w-full max-w-lg shadow-2xl relative max-h-[90vh] overflow-y-auto"
             role="dialog"
@@ -539,7 +563,9 @@ export default function Work() {
             <div className="sticky top-0 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 px-6 py-5 rounded-t-2xl">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 id="modal-title" className="text-xl font-bold text-gray-900">Update Task</h3>
+                  <h3 id="modal-title" className="text-xl font-bold text-gray-900">
+                    Update Task
+                  </h3>
                   <p id="modal-description" className="text-sm text-gray-600 mt-1">
                     Make changes to task status and add remarks
                   </p>
@@ -568,13 +594,12 @@ export default function Work() {
                 </div>
               </div>
             </div>
-            
 
             <div className="p-6 space-y-6">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">Update Status</label>
-                <div className="grid grid-cols-2 gap-3">
-                  {['completed', 'cancelled'].map((statusOption) => {
+                <label className="block text-sm font-semibold text-gray-700 mb-3">Update Options</label>
+                <div className="grid grid-cols-1 gap-3">
+                  {["completed", "cancelled", "remarks"].map((statusOption) => {
                     const config = STATUS_CONFIG[statusOption]
                     const Icon = config.icon
                     return (
@@ -582,25 +607,29 @@ export default function Work() {
                         key={statusOption}
                         type="button"
                         onClick={() => setStatus(statusOption)}
-                        className={`p-4 rounded-xl border-2 transition-all duration-200 ${
+                        className={`p-4 rounded-xl border-2 transition-all duration-200 flex items-center gap-3 ${
                           status === statusOption
                             ? config.buttonColor
                             : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
                         }`}
                         aria-pressed={status === statusOption}
                       >
-                        <Icon size={20} className="mx-auto mb-2" />
-                        <span className="text-sm font-medium">{config.text}</span>
+                        <Icon size={20} />
+                        <div className="text-left">
+                          <div className="text-sm font-medium">{config.text}</div>
+                          {statusOption === "remarks" && (
+                            <div className="text-xs text-gray-500 mt-1">Add remarks without changing status</div>
+                          )}
+                        </div>
                       </button>
                     )
                   })}
                 </div>
               </div>
-              
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  Remarks {status === "cancelled" && <span className="text-red-500">*</span>}
+                  Remarks {(status === "cancelled" || status === "remarks") && <span className="text-red-500">*</span>}
                 </label>
                 <div className="relative">
                   <textarea
@@ -614,9 +643,9 @@ export default function Work() {
                   />
                   <div className="absolute bottom-3 right-3 text-xs text-gray-400">{remarks.length}/500</div>
                 </div>
-                {status === "cancelled" && !remarks.trim() && (
+                {((status === "cancelled" && !remarks.trim()) || (status === "remarks" && !remarks.trim())) && (
                   <p className="text-red-500 text-sm mt-2" role="alert">
-                    Remarks are required when cancelling a task
+                    {status === "cancelled" ? "Remarks are required when cancelling a task" : "Please add remarks"}
                   </p>
                 )}
               </div>
@@ -632,7 +661,9 @@ export default function Work() {
                 <button
                   type="button"
                   onClick={() => handleUpdate(selectedTask._id)}
-                  disabled={updateLoading || !status || (status === "cancelled" && !remarks.trim())}
+                  disabled={
+                    updateLoading || !status || ((status === "cancelled" || status === "remarks") && !remarks.trim())
+                  }
                   className="flex-1 px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-xl hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
                 >
                   {updateLoading ? (
@@ -643,14 +674,10 @@ export default function Work() {
                   ) : (
                     "Save Changes"
                   )}
-
                 </button>
-
-                
               </div>
             </div>
           </div>
-          
         </div>
       )}
     </div>
