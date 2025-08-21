@@ -56,7 +56,7 @@ export default function AddUsersPage() {
     password: "", // Added missing password field
     designation: "User",
     organization: null,
-    confirmPPI: false,
+    // confirmPPI: false,
   })
   const [loading, setLoading] = useState(false)
   const [orgOptions, setOrgOptions] = useState([])

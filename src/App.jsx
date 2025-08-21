@@ -13,6 +13,7 @@ import AddUserPage from "./Page/AddUserPage"
 import AddOrganizationsPage from "./Page/AddOrganizationsPage"
 import AddIndustriesPage from "./Page/AddIndustriesPage"
 import AllUsers from "./Page/AllUsers"
+import CreateEventPage from "./Page/CreateEvent"
 function AppContent() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const location = useLocation()
@@ -42,6 +43,7 @@ function AppContent() {
           <Route path="/manage-organizations" element={<AddOrganizationsPage />} />
           <Route path="/manage-industries" element={<AddIndustriesPage />} />
           <Route path="/manage-users" element={<AllUsers />} />
+          <Route path="/create-event" element={<CreateEventPage />} />
         </Routes>
       </div>
 
