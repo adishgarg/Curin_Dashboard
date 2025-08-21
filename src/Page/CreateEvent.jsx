@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react"
 import Select from "react-select"
-import { Loader2, CalendarPlus, Calendar, MapPin, Users, DollarSign, Image, User, AlertCircle, CheckCircle, Upload, X } from "lucide-react"
+import { Loader2, CalendarPlus, Calendar, MapPin, Users, DollarSign, Image, User, AlertCircle, CheckCircle, Upload, X, Clock } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { apiClient } from "../services/api/client"
 
@@ -46,8 +46,8 @@ function FormField({ label, icon: Icon, children, error, required }) {
   )
 }
 
-// Calendar Component for showing booked/available dates
-function EventCalendar({ bookedDates, onDateSelect, selectedFromDate, selectedToDate }) {
+// Display-only Calendar Component
+function EventCalendar({ bookedDates, selectedFromDate, selectedToDate }) {
   const [currentMonth, setCurrentMonth] = useState(new Date())
   
   const getDaysInMonth = (date) => {
@@ -92,32 +92,60 @@ function EventCalendar({ bookedDates, onDateSelect, selectedFromDate, selectedTo
     const dateTime = date.getTime()
     const fromTime = new Date(selectedFromDate).getTime()
     const toTime = new Date(selectedToDate).getTime()
-    return dateTime >= fromTime && dateTime <= toTime
+    return dateTime > fromTime && dateTime < toTime
+  }
+
+  const isPastDate = (date) => {
+    if (!date) return false
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return date < today
   }
 
   const days = getDaysInMonth(currentMonth)
   const monthYear = currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
 
+  // Navigate to today's month
+  const goToToday = () => {
+    setCurrentMonth(new Date())
+  }
+
   return (
     <div className="bg-white border border-gray-300 rounded-lg p-4">
+      {/* Header with navigation */}
       <div className="flex justify-between items-center mb-4">
         <button
           type="button"
           onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
-          className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded"
+          className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+          title="Previous month"
         >
           ‹
         </button>
-        <h3 className="font-semibold text-gray-800">{monthYear}</h3>
+        
+        <div className="flex items-center gap-2">
+          <h3 className="font-semibold text-gray-800">{monthYear}</h3>
+          <button
+            type="button"
+            onClick={goToToday}
+            className="px-2 py-1 text-xs bg-blue-100 text-blue-600 hover:bg-blue-200 rounded transition-colors"
+            title="Go to current month"
+          >
+            Today
+          </button>
+        </div>
+        
         <button
           type="button"
           onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
-          className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded"
+          className="px-3 py-1 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+          title="Next month"
         >
           ›
         </button>
       </div>
       
+      {/* Days of week header */}
       <div className="grid grid-cols-7 gap-1 mb-2">
         {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
           <div key={day} className="text-center text-sm font-medium text-gray-500 py-2">
@@ -126,32 +154,33 @@ function EventCalendar({ bookedDates, onDateSelect, selectedFromDate, selectedTo
         ))}
       </div>
       
+      {/* Calendar grid - Display only */}
       <div className="grid grid-cols-7 gap-1">
         {days.map((date, index) => (
           <div key={index} className="aspect-square">
             {date && (
-              <button
-                type="button"
-                onClick={() => onDateSelect(date)}
-                disabled={isDateBooked(date)}
-                className={`w-full h-full rounded text-sm flex items-center justify-center transition-colors ${
+              <div
+                className={`w-full h-full rounded text-sm flex items-center justify-center font-medium ${
                   isDateBooked(date)
-                    ? 'bg-red-100 text-red-500 cursor-not-allowed'
+                    ? 'bg-red-100 text-red-500 border border-red-200'
+                    : isPastDate(date)
+                    ? 'bg-gray-50 text-gray-300'
                     : isDateSelected(date)
-                    ? 'bg-blue-500 text-white'
+                    ? 'bg-blue-500 text-white shadow-md'
                     : isInSelectedRange(date)
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'hover:bg-gray-100 text-gray-700'
+                    ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                    : 'text-gray-700'
                 }`}
               >
                 {date.getDate()}
-              </button>
+              </div>
             )}
           </div>
         ))}
       </div>
       
-      <div className="mt-4 flex gap-4 text-sm">
+      {/* Legend */}
+      <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 bg-red-100 border border-red-200 rounded"></div>
           <span className="text-gray-600">Booked</span>
@@ -161,10 +190,37 @@ function EventCalendar({ bookedDates, onDateSelect, selectedFromDate, selectedTo
           <span className="text-gray-600">Selected</span>
         </div>
         <div className="flex items-center gap-2">
+          <div className="w-3 h-3 bg-blue-100 border border-blue-200 rounded"></div>
+          <span className="text-gray-600">Range</span>
+        </div>
+        <div className="flex items-center gap-2">
           <div className="w-3 h-3 bg-gray-100 border border-gray-200 rounded"></div>
           <span className="text-gray-600">Available</span>
         </div>
       </div>
+
+      {/* Selection info */}
+      {(selectedFromDate || selectedToDate) && (
+        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="text-sm text-blue-800">
+            <strong>Selected Period:</strong>
+            <div className="mt-1">
+              {selectedFromDate && (
+                <span>From: {new Date(selectedFromDate).toLocaleDateString()}</span>
+              )}
+              {selectedFromDate && selectedToDate && <span className="mx-2">→</span>}
+              {selectedToDate && (
+                <span>To: {new Date(selectedToDate).toLocaleDateString()}</span>
+              )}
+            </div>
+            {selectedFromDate && selectedToDate && (
+              <div className="mt-1 text-xs text-blue-600">
+                Duration: {Math.ceil((new Date(selectedToDate) - new Date(selectedFromDate)) / (1000 * 60 * 60 * 24)) + 1} days
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -174,6 +230,8 @@ export default function CreateEventPage() {
     eventName: "",
     proposedDateFrom: "",
     proposedDateTo: "",
+    fromTime: "09:00",
+    toTime: "17:00",
     organizedBy: null,
     venue: "",
     poster: null,
@@ -275,25 +333,6 @@ export default function CreateEventPage() {
     setFormData({ ...formData, [field]: value })
   }
 
-  // Handle date selection from calendar
-  const handleDateSelect = (date) => {
-    const dateStr = date.toISOString().split('T')[0]
-    
-    if (!formData.proposedDateFrom) {
-      updateFormData("proposedDateFrom", dateStr)
-    } else if (!formData.proposedDateTo) {
-      if (new Date(dateStr) >= new Date(formData.proposedDateFrom)) {
-        updateFormData("proposedDateTo", dateStr)
-      } else {
-        updateFormData("proposedDateFrom", dateStr)
-        updateFormData("proposedDateTo", "")
-      }
-    } else {
-      updateFormData("proposedDateFrom", dateStr)
-      updateFormData("proposedDateTo", "")
-    }
-  }
-
   // Handle poster upload
   const handlePosterUpload = (e) => {
     const file = e.target.files[0]
@@ -329,6 +368,8 @@ export default function CreateEventPage() {
       submitData.append("eventName", formData.eventName)
       submitData.append("proposedDateFrom", formData.proposedDateFrom)
       submitData.append("proposedDateTo", formData.proposedDateTo)
+      submitData.append("fromTime", formData.fromTime)
+      submitData.append("toTime", formData.toTime)
       submitData.append("organizedBy", formData.organizedBy?.value || "")
       submitData.append("venue", formData.venue)
       submitData.append("budget", formData.budget)
@@ -417,6 +458,29 @@ export default function CreateEventPage() {
                     value={formData.proposedDateTo}
                     onChange={(e) => updateFormData("proposedDateTo", e.target.value)}
                     min={formData.proposedDateFrom}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
+                </FormField>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4">
+                <FormField label="From Time" icon={Clock} required>
+                  <input
+                    type="time"
+                    value={formData.fromTime}
+                    onChange={(e) => updateFormData("fromTime", e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  />
+                </FormField>
+
+                <FormField label="To Time" icon={Clock} required>
+                  <input
+                    type="time"
+                    value={formData.toTime}
+                    onChange={(e) => updateFormData("toTime", e.target.value)}
+                    min={formData.fromTime}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
                   />
@@ -534,18 +598,17 @@ export default function CreateEventPage() {
             </form>
           </div>
 
-          {/* Calendar Section */}
+          {/* Calendar Section - Display Only */}
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
               <Calendar size={20} />
               Event Calendar
             </h3>
             <p className="text-gray-600 text-sm mb-4">
-              Click on dates to select your event duration. Red dates are already booked.
+              Visual calendar showing selected dates and booked dates. Use the date inputs above to select your event dates.
             </p>
             <EventCalendar
               bookedDates={bookedDates}
-              onDateSelect={handleDateSelect}
               selectedFromDate={formData.proposedDateFrom}
               selectedToDate={formData.proposedDateTo}
             />

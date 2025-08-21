@@ -113,18 +113,18 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
       <div
         className={`
           fixed inset-y-0 left-0 z-40 w-72 bg-white shadow-xl border-r border-gray-200
-          transform transition-transform duration-300 ease-in-out
+          transform transition-transform duration-300 ease-in-out flex flex-col
           ${sidebarOpen || !isMobile ? "translate-x-0" : "-translate-x-full"}
           lg:translate-x-0
         `}
       >
         {/* Header */}
-        <div className="p-6 border-b border-gray-100">
+        <div className="p-6 border-b border-gray-100 flex-shrink-0">
           <h1 className="text-xl font-bold text-gray-800">Curin</h1>
         </div>
 
-        {/* Navigation */}
-        <div className="flex-1 overflow-y-auto">
+        {/* Navigation - Scrollable Content with hidden scrollbar */}
+        <div className="flex-1 overflow-y-auto scrollbar-hide">
           <nav className="p-4 space-y-2">
             {/* Basic Menus */}
             {menus.map((menu) => {
@@ -185,7 +185,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
 
                   <div
                     className={`overflow-hidden transition-all duration-200 ${
-                      openMenus[key] ? "max-h-48 opacity-100" : "max-h-0 opacity-0"
+                      openMenus[key] ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
                     }`}
                   >
                     <div className="ml-4 space-y-1">
@@ -221,8 +221,8 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
           </nav>
         </div>
 
-        {/* User Profile */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-100 bg-gray-50">
+        {/* User Profile - Fixed at bottom */}
+        <div className="p-4 border-t border-gray-100 bg-gray-50 flex-shrink-0">
           <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-white transition-colors cursor-pointer">
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-semibold shadow-lg">
               A
@@ -234,6 +234,16 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
           </div>
         </div>
       </div>
+
+      <style jsx>{`
+        .scrollbar-hide {
+          -ms-overflow-style: none;  /* Internet Explorer 10+ */
+          scrollbar-width: none;  /* Firefox */
+        }
+        .scrollbar-hide::-webkit-scrollbar { 
+          display: none;  /* Safari and Chrome */
+        }
+      `}</style>
     </>
   )
 }
