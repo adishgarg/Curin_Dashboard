@@ -1,6 +1,7 @@
+
 class ApiClient {
     constructor(){
-        this.baseUrl = process.env.API_URL;
+        this.baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
     }
     async request(endpoint, options = {}){
         const url = `${this.baseUrl}${endpoint}`
