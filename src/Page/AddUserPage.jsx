@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from "react"
 import Select from "react-select"
-import { Loader2, UserPlus, User, Mail, Phone, Briefcase, Building2, AlertCircle, CheckCircle } from "lucide-react"
+import { Loader2, UserPlus, User, Mail, Phone, Briefcase, Building2, AlertCircle, CheckCircle, RefreshCw, Copy, Check } from "lucide-react"
 import { useNavigate } from "react-router-dom"
+import { employeeService } from "../services/api/employees"
+import { apiClient } from "../services/api/client"
 
-// API constants
-const API_BASE_URL = "https://curin-backend.onrender.com/api"
 const CACHE_DURATION = 3600 * 1000 // 1 hour
 
 // Cache utilities
@@ -53,6 +53,7 @@ export default function AddUsersPage() {
     lastName: "",
     email: "",
     phone: "",
+    password: "", // Added missing password field
     designation: "User",
     organization: null,
     confirmPPI: false,
@@ -62,24 +63,33 @@ export default function AddUsersPage() {
   const [loadingOrgs, setLoadingOrgs] = useState(true)
   const [message, setMessage] = useState("")
   const [isSuccess, setIsSuccess] = useState(false)
+  const [copied, setCopied] = useState(false) // Added missing copied state
+
+  const generatePassword = (length = 12) => {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*-()_+"
+    let password = ""
+    for (let i = 0; i < length; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    return password
+  }
 
   const navigate = useNavigate()
 
-  // Fetch organizations with caching
+  // Fetch organizations with caching using apiClient
   const fetchOrganizations = useCallback(async () => {
     setLoadingOrgs(true)
     try {
       let cached = cacheUtils.get("organizations")
       if (cached) {
         setOrgOptions(cached.map((org) => ({ value: org._id, label: org.name })))
+        setLoadingOrgs(false)
         return
       }
 
-      const response = await fetch(`${API_BASE_URL}/org`)
-      if (!response.ok) throw new Error("Failed to fetch organizations")
-
-      const json = await response.json()
-      const data = json?.data?.organizations || []
+      // Use apiClient instead of direct fetch
+      const response = await apiClient.get("/org")
+      const data = response?.data?.organizations || []
 
       cacheUtils.set("organizations", data)
       setOrgOptions(data.map((org) => ({ value: org._id, label: org.name })))
@@ -102,6 +112,7 @@ export default function AddUsersPage() {
   // Handle submit
   const handleSubmit = async (e) => {
     e.preventDefault()
+
     if (formData.designation === "PPI" && !formData.confirmPPI) {
       alert("Please confirm that you are making this user PPI.")
       return
@@ -109,14 +120,22 @@ export default function AddUsersPage() {
 
     setLoading(true)
     try {
-      // TODO: Replace with real API call
-      console.log("Submitting employee:", formData)
+      // Prepare data for submission
+      const submitData = {
+        ...formData,
+        organization: formData.organization?.value || null, // Extract the value from Select option
+      }
+
+      const response = await employeeService.createEmployee(submitData)
+
+      console.log("Created Employee:", response)
 
       setMessage("User created successfully!")
       setIsSuccess(true)
 
       setTimeout(() => navigate("/"), 1000)
     } catch (error) {
+      console.error("Error creating employee:", error)
       setMessage("Failed to create user")
       setIsSuccess(false)
     } finally {
@@ -141,10 +160,11 @@ export default function AddUsersPage() {
         {/* Success/Error Message */}
         {message && (
           <div
-            className={`mb-6 p-4 rounded-xl flex items-center gap-3 ${isSuccess
+            className={`mb-6 p-4 rounded-xl flex items-center gap-3 ${
+              isSuccess
                 ? "bg-green-50 border border-green-200 text-green-800"
                 : "bg-red-50 border border-red-200 text-red-800"
-              }`}
+            }`}
           >
             {isSuccess ? <CheckCircle size={20} /> : <AlertCircle size={20} />}
             <span className="font-medium">{message}</span>
@@ -160,6 +180,7 @@ export default function AddUsersPage() {
               value={formData.firstName}
               onChange={(e) => updateFormData("firstName", e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              required
             />
           </FormField>
 
@@ -170,6 +191,7 @@ export default function AddUsersPage() {
               value={formData.lastName}
               onChange={(e) => updateFormData("lastName", e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              required
             />
           </FormField>
 
@@ -180,6 +202,7 @@ export default function AddUsersPage() {
               value={formData.email}
               onChange={(e) => updateFormData("email", e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              required
             />
           </FormField>
 
@@ -193,6 +216,46 @@ export default function AddUsersPage() {
             />
           </FormField>
 
+          <FormField label="Password" icon={Mail} required>
+            <div className="relative flex items-center w-full">
+              <input
+                type="text"
+                placeholder="Generated password"
+                value={formData.password}
+                onChange={(e) => updateFormData("password", e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent pr-20"
+                required
+              />
+              <div className="absolute right-2 flex items-center space-x-2">
+                {/* Random Password Button */}
+                <button
+                  type="button"
+                  onClick={() => updateFormData("password", generatePassword())}
+                  className="p-2 text-gray-500 hover:text-blue-600 transition-colors"
+                  title="Generate random password"
+                >
+                  <RefreshCw size={18} />
+                </button>
+                {/* Copy Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (formData.password) {
+                      navigator.clipboard.writeText(formData.password)
+                      setCopied(true)
+                      setTimeout(() => setCopied(false), 1500)
+                    }
+                  }}
+                  className="p-2 text-gray-500 hover:text-green-600 transition-colors"
+                  title="Copy password"
+                  disabled={!formData.password}
+                >
+                  {copied ? <Check size={18} /> : <Copy size={18} />}
+                </button>
+              </div>
+            </div>
+          </FormField>
+
           <FormField label="Designation" icon={Briefcase} required>
             <Select
               options={[
@@ -202,11 +265,13 @@ export default function AddUsersPage() {
               value={{ value: formData.designation, label: formData.designation }}
               onChange={(opt) => updateFormData("designation", opt.value)}
               placeholder="Select designation"
+              className="react-select-container"
+              classNamePrefix="react-select"
             />
           </FormField>
 
           {formData.designation === "PPI" && (
-            <div className="flex items-center gap-2 p-3 border rounded-lg bg-yellow-50">
+            <div className="flex items-center gap-2 p-3 border rounded-lg bg-yellow-50 border-yellow-200">
               <input
                 type="checkbox"
                 checked={formData.confirmPPI}
@@ -220,8 +285,6 @@ export default function AddUsersPage() {
             </div>
           )}
 
-
-
           <FormField label="Organization" icon={Building2} required>
             <Select
               options={orgOptions}
@@ -229,6 +292,9 @@ export default function AddUsersPage() {
               onChange={(opt) => updateFormData("organization", opt)}
               placeholder={loadingOrgs ? "Loading organizations..." : "Select organization"}
               isDisabled={loadingOrgs}
+              className="react-select-container"
+              classNamePrefix="react-select"
+              isLoading={loadingOrgs}
             />
           </FormField>
 

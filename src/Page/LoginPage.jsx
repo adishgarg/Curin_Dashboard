@@ -20,7 +20,7 @@ export default function LoginPage() {
       const data = await loginService.login({email, password})
       console.log("Login success:", data)
 
-      localStorage.setItem("token", data.token)
+      localStorage.setItem("token", data.data.token)
       navigate("/")
     } catch (err) {
       setError(err.message || "Invalid credentials")

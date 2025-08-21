@@ -4,8 +4,9 @@ import { User, Mail, Phone, Building2, Loader2, Filter, Copy, Check, X, Save, Se
 import ReusableTable from "../components/ReusableTable"
 import EditButton from "../components/EditButton"
 import DeleteButton from "../components/DeleteButton"
+import { employeeService } from "../services/api/employees"
 
-const API_BASE_URL = "https://curin-backend.onrender.com/api"
+
 const CACHE_DURATION = 3600 * 1000 // 1 hour
 
 // Cache utilities (same as CreateTaskPage)
@@ -34,7 +35,7 @@ const cacheUtils = {
   }
 }
 
-// Custom hook for fetching organizations (same pattern as CreateTaskPage)
+// Custom hook for fetching organizations using apiClient
 const useOrganizations = () => {
   const [organizations, setOrganizations] = useState([])
   const [loading, setLoading] = useState(true)
@@ -53,12 +54,9 @@ const useOrganizations = () => {
         return
       }
 
-      // Fetch from API
-      const response = await fetch(`${API_BASE_URL}/org`)
-      if (!response.ok) throw new Error('Failed to fetch organizations')
-      
-      const json = await response.json()
-      const data = json?.data?.organizations || []
+      // Fetch from API using apiClient
+      const response = await apiClient.get('/org')
+      const data = response?.data?.organizations || []
       
       if (Array.isArray(data)) {
         cacheUtils.set('organizations', data)
@@ -107,18 +105,13 @@ const EditUserModal = ({ user, organizations, isOpen, onClose, onSave }) => {
   const handleSave = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`${API_BASE_URL}/employees/${user._id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      })
+      // Use employeeService instead of direct fetch
+      await employeeService.updateEmployee(user._id, formData)
       
-      if (response.ok) {
-        // Clear cache to force refresh
-        localStorage.removeItem('employees')
-        onSave()
-        onClose()
-      }
+      // Clear cache to force refresh
+      localStorage.removeItem('employees')
+      onSave()
+      onClose()
     } catch (error) {
       console.error('Failed to update user:', error)
     } finally {
@@ -422,14 +415,14 @@ export default function AllUsersPage() {
   const [organizationFilter, setOrganizationFilter] = useState("")
   const [designationFilter, setDesignationFilter] = useState("")
 
-  // Use the custom hook for organizations (same as CreateTaskPage)
+  // Use the custom hook for organizations
   const { organizations, loading: orgLoading, error: orgError } = useOrganizations()
 
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true)
       
-      // Check cache first (same as CreateTaskPage pattern)
+      // Check cache first
       let cached = cacheUtils.get('employees')
       if (cached) {
         setUsers(cached)
@@ -437,12 +430,8 @@ export default function AllUsersPage() {
         return
       }
 
-      // Fetch from API
-      const response = await fetch(`${API_BASE_URL}/employees`)
-      if (!response.ok) throw new Error('Failed to fetch users')
-      
-      const data = await response.json()
-      const employees = data?.data?.employees || []
+      // Use employeeService instead of direct fetch
+      const employees = await employeeService.getAllEmployees()
       
       if (Array.isArray(employees)) {
         cacheUtils.set('employees', employees)
@@ -469,15 +458,12 @@ export default function AllUsersPage() {
   const handleDelete = async (userId, userName) => {
     setDeleteLoading(userId)
     try {
-      const response = await fetch(`${API_BASE_URL}/employees/${userId}`, {
-        method: 'DELETE'
-      })
+      // Use employeeService instead of direct fetch
+      await employeeService.deleteEmployees(userId)
       
-      if (response.ok) {
-        // Clear cache and update state
-        localStorage.removeItem('employees')
-        setUsers(prev => prev.filter(user => user._id !== userId))
-      }
+      // Clear cache and update state
+      localStorage.removeItem('employees')
+      setUsers(prev => prev.filter(user => user._id !== userId))
     } catch (error) {
       console.error('Failed to delete user:', error)
     } finally {
