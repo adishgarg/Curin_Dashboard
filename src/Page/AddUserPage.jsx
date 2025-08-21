@@ -1,4 +1,3 @@
-"use client"
 import { useState, useEffect, useCallback } from "react"
 import Select from "react-select"
 import { Loader2, UserPlus, User, Mail, Phone, Briefcase, Building2, AlertCircle, CheckCircle } from "lucide-react"
