@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Mail, Lock, Loader2 } from "lucide-react"
 import { Link } from "react-router-dom"
 import { useNavigate } from "react-router-dom"
+import { loginService } from "../services/api/login"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -16,24 +17,13 @@ export default function LoginPage() {
     setError(null)
 
     try {
-      // Call your backend login API here
-      const response = await fetch("https://curin-backend.onrender.com/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password })
-      })
+      const data = await loginService.login(email, password)
+      console.log("Login success:", data)
 
-      const data = await response.json()
-      if (response.ok) {
-        console.log("Login success:", data)
-        // Save token in localStorage and redirect
-        localStorage.setItem("token", data.token)
-        window.location.href = "/"
-      } else {
-        setError(data.message || "Invalid credentials")
-      }
+      localStorage.setItem("token", data.token)
+      navigate("/")
     } catch (err) {
-      setError("Something went wrong. Please try again.")
+      setError(err.message || "Invalid credentials")
     } finally {
       setLoading(false)
     }
@@ -102,7 +92,7 @@ export default function LoginPage() {
           </div>
 
           {/* Submit */}
-          {/* <button
+          <button
             type="submit"
             disabled={loading}
             className="w-full flex items-center justify-center bg-blue-600 text-white py-2.5 px-4 rounded-lg font-medium hover:bg-blue-700 focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
@@ -110,10 +100,10 @@ export default function LoginPage() {
             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Login"}
 
 
-          </button> */}
+          </button>
 
 
-          <button
+          {/* <button
             type="submit"
             disabled={loading}
             onClick={(e) => {
@@ -123,7 +113,7 @@ export default function LoginPage() {
             className="w-full flex items-center justify-center bg-blue-600 text-white py-2.5 px-4 rounded-lg font-medium hover:bg-blue-700 focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
           >
             {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Login"}
-          </button>
+          </button> */}
         </form>
       </div>
     </div>

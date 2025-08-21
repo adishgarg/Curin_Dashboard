@@ -49,8 +49,10 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
     icon: User, // you can change to another Lucide icon if you like
     items: [
       { name: "Add Users", icon: User, href: "/add-users" },
-      { name: "Add Organizations", icon: UserCheck, href: "/add-organizations" },
-      { name: "Add Industries", icon: ClipboardList, href: "/add-industries" },
+      { name: "Manage Users", icon: User, href: "/manage-users" },
+
+      { name: "Manage Organizations", icon: UserCheck, href: "/manage-organizations" },
+      { name: "Manage Industries", icon: ClipboardList, href: "/manage-industries" },
     ],
   },
     workProgress: {

@@ -39,9 +39,9 @@ function AppContent() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/add-users" element={<AddUserPage />} />
-          <Route path="/add-organizations" element={<AddOrganizationsPage />} />
-          <Route path="/add-industries" element={<AddIndustriesPage />} />
-          <Route path="/all-users" element={<AllUsers />} />
+          <Route path="/manage-organizations" element={<AddOrganizationsPage />} />
+          <Route path="/manage-industries" element={<AddIndustriesPage />} />
+          <Route path="/manage-users" element={<AllUsers />} />
         </Routes>
       </div>
 
