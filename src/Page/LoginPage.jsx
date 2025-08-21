@@ -17,7 +17,7 @@ export default function LoginPage() {
     setError(null)
 
     try {
-      const data = await loginService.login(email, password)
+      const data = await loginService.login({email, password})
       console.log("Login success:", data)
 
       localStorage.setItem("token", data.token)
