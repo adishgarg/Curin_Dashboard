@@ -12,7 +12,7 @@ import ResetPasswordPage from "./Page/ResetPasswordPage"
 import AddUserPage from "./Page/AddUserPage"
 import AddOrganizationsPage from "./Page/AddOrganizationsPage"
 import AddIndustriesPage from "./Page/AddIndustriesPage"
-
+import AllUsers from "./Page/AllUsers"
 function AppContent() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const location = useLocation()
@@ -41,6 +41,7 @@ function AppContent() {
           <Route path="/add-users" element={<AddUserPage />} />
           <Route path="/add-organizations" element={<AddOrganizationsPage />} />
           <Route path="/add-industries" element={<AddIndustriesPage />} />
+          <Route path="/all-users" element={<AllUsers />} />
         </Routes>
       </div>
 
