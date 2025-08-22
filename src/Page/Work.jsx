@@ -18,13 +18,12 @@ import {
   Loader2,
   AlertCircle,
   RefreshCw,
-  Eye,
   MessageSquare,
 } from "lucide-react"
 import ReusableTable from "../components/ReusableTable"
+import { taskService } from "../services/api/task"
 
 // Constants
-const API_BASE_URL = "https://curin-backend.onrender.com/api"
 const DEBOUNCE_DELAY = 300
 const DEFAULT_DATE_RANGE = {
   startDate: new Date(2025, 0, 15, 9, 0), // Jan 15, 2025 9:00 AM
@@ -76,7 +75,7 @@ const useDebounce = (value, delay) => {
   return debouncedValue
 }
 
-// Custom hook for tasks data management
+// Custom hook for tasks data management using taskService
 const useTasksData = () => {
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
@@ -87,21 +86,20 @@ const useTasksData = () => {
     setError(null)
 
     try {
-      const response = await fetch(`${API_BASE_URL}/tasks/`)
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const data = await response.json()
-      if (data.status === "success") {
-        const tasksWithDates = data.data.tasks.map((task) => ({
+      // Use taskService instead of direct fetch
+      const data = await taskService.getAllTasks()
+      
+      console.log("Tasks from service:", data) // Debug log
+      
+      if (Array.isArray(data)) {
+        const tasksWithDates = data.map((task) => ({
           ...task,
           startDate: task.startDate || DEFAULT_DATE_RANGE.startDate,
           endDate: task.endDate || DEFAULT_DATE_RANGE.endDate,
         }))
         setTasks(tasksWithDates)
       } else {
-        throw new Error(data.message || "Failed to fetch tasks")
+        throw new Error("Invalid data format received from service")
       }
     } catch (err) {
       console.error("Error fetching tasks:", err)
@@ -133,10 +131,10 @@ const useTaskFiltering = (tasks, searchTerm, statusFilter) => {
       const lowerSearch = debouncedSearchTerm.toLowerCase()
       filtered = filtered.filter(
         (task) =>
-          task.taskName.toLowerCase().includes(lowerSearch) ||
-          task.partnerOrganizations?.some((p) => p.name.toLowerCase().includes(lowerSearch)) ||
-          task.employeesAssigned?.some((e) => e.name.toLowerCase().includes(lowerSearch)) ||
-          task.industriesInvolved?.some((i) => i.name.toLowerCase().includes(lowerSearch)),
+          task.taskName?.toLowerCase().includes(lowerSearch) ||
+          task.partnerOrganizations?.some((p) => p.name?.toLowerCase().includes(lowerSearch)) ||
+          task.employeesAssigned?.some((e) => e.name?.toLowerCase().includes(lowerSearch)) ||
+          task.industriesInvolved?.some((i) => i.name?.toLowerCase().includes(lowerSearch)),
       )
     }
 
@@ -152,7 +150,11 @@ const useTaskFiltering = (tasks, searchTerm, statusFilter) => {
 
 // Utility functions
 const formatDate = (date) => {
+  if (!date) return "No date set"
+  
   const d = new Date(date)
+  if (isNaN(d.getTime())) return "Invalid date"
+  
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
   const day = d.getDate()
   const month = months[d.getMonth()]
@@ -187,6 +189,161 @@ export default function Work() {
   const [dropdownStates, setDropdownStates] = useState({})
   const [updateLoading, setUpdateLoading] = useState(false)
 
+  const { tasks, loading, error, refetch, updateTask } = useTasksData()
+  const filteredTasks = useTaskFiltering(tasks, searchTerm, statusFilter)
+  const modalRef = useRef(null)
+
+  // Optimized dropdown toggle
+  const toggleDropdown = useCallback((taskId, type) => {
+    const key = `${taskId}-${type}`
+    setDropdownStates((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }))
+  }, [])
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest("[data-dropdown]")) {
+        setDropdownStates({})
+      }
+    }
+
+    document.addEventListener("click", handleClickOutside)
+    return () => document.removeEventListener("click", handleClickOutside)
+  }, [])
+
+  // Optimized task update handler using taskService
+  const handleUpdate = useCallback(
+    async (taskId) => {
+      if (!status) {
+        alert("Please select an option")
+        return
+      }
+      if (status === "cancelled" && !remarks.trim()) {
+        alert("Remarks are required when cancelling a task")
+        return
+      }
+      if (status === "remarks" && !remarks.trim()) {
+        alert("Please add remarks")
+        return
+      }
+
+      setUpdateLoading(true)
+      try {
+        const updateData = {
+          remarks,
+          modifiedBy: "AdminUser", // Replace with logged-in user
+        }
+
+        if (status === "remarks") {
+          updateData.status = "active"
+        } else {
+          updateData.status = status
+        }
+
+        // Use taskService instead of direct fetch
+        const result = await taskService.updateTask(taskId, updateData)
+        
+        console.log("Update result:", result) // Debug log
+        
+        // Update local state
+        const updates = { remarks }
+        if (status === "remarks") {
+          updates.status = "active"
+        } else {
+          updates.status = status
+        }
+        updateTask(taskId, updates)
+
+        setSelectedTask(null)
+        setStatus("")
+        setRemarks("")
+        console.log("Task updated successfully")
+        
+      } catch (err) {
+        console.error("Error updating task:", err)
+        alert("Error: " + err.message)
+      } finally {
+        setUpdateLoading(false)
+      }
+    },
+    [status, remarks, updateTask],
+  )
+
+  // Keyboard navigation for modal
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape" && selectedTask) {
+        setSelectedTask(null)
+      }
+    }
+
+    if (selectedTask) {
+      document.addEventListener("keydown", handleKeyDown)
+      return () => document.removeEventListener("keydown", handleKeyDown)
+    }
+  }, [selectedTask])
+
+  // Memoized ArrayDisplay component
+  const ArrayDisplay = useCallback(
+    ({ items, taskId, type, icon: Icon, emptyText = "-" }) => {
+      if (!items || items.length === 0) {
+        return <span className="text-gray-500">{emptyText}</span>
+      }
+
+      const key = `${taskId}-${type}`
+      const isOpen = dropdownStates[key]
+      const displayItems = Array.isArray(items) ? items : []
+
+      if (displayItems.length === 1) {
+        const item = displayItems[0]
+        return (
+          <div className="flex items-center gap-2 text-sm text-gray-700">
+            <Icon size={14} className="text-gray-500" aria-hidden="true" />
+            <span>{typeof item === "object" ? (item.name || item.label || "Unknown") : item}</span>
+          </div>
+        )
+      }
+
+      return (
+        <div className="relative" data-dropdown>
+          <button
+            onClick={() => toggleDropdown(taskId, type)}
+            className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded"
+            aria-expanded={isOpen}
+            aria-haspopup="true"
+          >
+            <Icon size={14} className="text-gray-500" aria-hidden="true" />
+            <span>
+              {displayItems.length} {type}
+            </span>
+            <ChevronDown
+              size={12}
+              className={`transition-transform ${isOpen ? "rotate-180" : ""}`}
+              aria-hidden="true"
+            />
+          </button>
+
+          {isOpen && (
+            <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-48">
+              <div className="p-2 max-h-32 overflow-y-auto">
+                {displayItems.map((item, index) => (
+                  <div key={index} className="px-2 py-1 text-sm text-gray-700 hover:bg-gray-50 rounded">
+                    {typeof item === "object" ? (item.name || item.label || "Unknown") : item}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )
+    },
+    [dropdownStates, toggleDropdown],
+  )
+
+  // Table columns configuration
   const columns = [
     {
       header: "Sr No.",
@@ -202,7 +359,7 @@ export default function Work() {
       header: "Name",
       render: (task) => (
         <div>
-          <div className="font-medium text-gray-900">{task.taskName}</div>
+          <div className="font-medium text-gray-900">{task.taskName || "Unnamed Task"}</div>
           {task.description && (
             <div className="text-sm text-gray-500 mt-1 max-w-xs truncate" title={task.description}>
               {task.description}
@@ -291,7 +448,6 @@ export default function Work() {
       ),
       className: "min-w-[180px]",
     },
-    
     {
       header: "Actions",
       render: (task) => (
@@ -311,165 +467,6 @@ export default function Work() {
       className: "min-w-[100px] whitespace-nowrap",
     },
   ]
-
-  const { tasks, loading, error, refetch, updateTask } = useTasksData()
-  const filteredTasks = useTaskFiltering(tasks, searchTerm, statusFilter)
-  const modalRef = useRef(null)
-
-  // Optimized dropdown toggle
-  const toggleDropdown = useCallback((taskId, type) => {
-    const key = `${taskId}-${type}`
-    setDropdownStates((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }))
-  }, [])
-
-  // Close dropdowns when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (!event.target.closest("[data-dropdown]")) {
-        setDropdownStates({})
-      }
-    }
-
-    document.addEventListener("click", handleClickOutside)
-    return () => document.removeEventListener("click", handleClickOutside)
-  }, [])
-
-  // Optimized task update handler
-  const handleUpdate = useCallback(
-    async (taskId) => {
-      if (!status) {
-        alert("Please select an option")
-        return
-      }
-      if (status === "cancelled" && !remarks.trim()) {
-        alert("Remarks are required when cancelling a task")
-        return
-      }
-      if (status === "remarks" && !remarks.trim()) {
-        alert("Please add remarks")
-        return
-      }
-
-      setUpdateLoading(true)
-      try {
-        const updateData = {
-          remarks,
-          modifiedBy: "AdminUser", // Replace with logged-in user
-        }
-
-        if (status === "remarks") {
-          updateData.status = "active"
-        } else {
-          updateData.status = status
-        }
-
-        const response = await fetch(`${API_BASE_URL}/tasks/${taskId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updateData),
-        })
-
-        const result = await response.json()
-        if (result.status === "success") {
-          const updates = { remarks }
-          if (status === "remarks") {
-            updates.status = "active"
-          } else {
-            updates.status = status
-          }
-          updateTask(taskId, updates)
-
-          setSelectedTask(null)
-          setStatus("")
-          setRemarks("")
-          console.log("Task updated successfully")
-        } else {
-          throw new Error(result.message || "Failed to update task")
-        }
-      } catch (err) {
-        console.error("Error updating task:", err)
-        alert("Error: " + err.message)
-      } finally {
-        setUpdateLoading(false)
-      }
-    },
-    [status, remarks, updateTask],
-  )
-
-  // Keyboard navigation for modal
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      if (event.key === "Escape" && selectedTask) {
-        setSelectedTask(null)
-      }
-    }
-
-    if (selectedTask) {
-      document.addEventListener("keydown", handleKeyDown)
-      return () => document.removeEventListener("keydown", handleKeyDown)
-    }
-  }, [selectedTask])
-
-  // Memoized components for better performance
-  // eslint-disable-next-line no-unused-vars
-  const ArrayDisplay = useCallback(
-    ({ items, taskId, type, icon: Icon, emptyText = "-" }) => {
-      if (!items || items.length === 0) {
-        return <span className="text-gray-500">{emptyText}</span>
-      }
-
-      const key = `${taskId}-${type}`
-      const isOpen = dropdownStates[key]
-      const displayItems = Array.isArray(items) ? items : []
-
-      if (displayItems.length === 1) {
-        const item = displayItems[0]
-        return (
-          <div className="flex items-center gap-2 text-sm text-gray-700">
-            <Icon size={14} className="text-gray-500" aria-hidden="true" />
-            <span>{typeof item === "object" ? item.name : item}</span>
-          </div>
-        )
-      }
-
-      return (
-        <div className="relative" data-dropdown>
-          <button
-            onClick={() => toggleDropdown(taskId, type)}
-            className="flex items-center gap-2 text-sm text-gray-700 hover:text-gray-900 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded"
-            aria-expanded={isOpen}
-            aria-haspopup="true"
-          >
-            <Icon size={14} className="text-gray-500" aria-hidden="true" />
-            <span>
-              {displayItems.length} {type}
-            </span>
-            <ChevronDown
-              size={12}
-              className={`transition-transform ${isOpen ? "rotate-180" : ""}`}
-              aria-hidden="true"
-            />
-          </button>
-
-          {isOpen && (
-            <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-48">
-              <div className="p-2 max-h-32 overflow-y-auto">
-                {displayItems.map((item, index) => (
-                  <div key={index} className="px-2 py-1 text-sm text-gray-700 hover:bg-gray-50 rounded">
-                    {typeof item === "object" ? item.name : item}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )
-    },
-    [dropdownStates, toggleDropdown],
-  )
 
   // Loading component
   const LoadingSpinner = () => (
@@ -499,6 +496,12 @@ export default function Work() {
     </div>
   )
 
+  // Debug information (remove in production)
+  if (process.env.NODE_ENV === 'development') {
+    console.log("Tasks loaded:", tasks.length)
+    console.log("Filtered tasks:", filteredTasks.length)
+  }
+
   if (loading) return <LoadingSpinner />
   if (error) return <ErrorMessage message={error} onRetry={refetch} />
 
@@ -507,7 +510,7 @@ export default function Work() {
       <div className="bg-white border-b border-gray-200 px-4 lg:px-6 py-6">
         <div className="max-w-7xl mx-auto">
           <h1 className="text-2xl lg:text-3xl font-semibold text-gray-900 mb-2">Task Management</h1>
-          <p className="text-gray-600">Monitor and update your team's progress</p>
+          <p className="text-gray-600">Monitor and update your team's progress ({tasks.length} tasks total)</p>
         </div>
       </div>
 
@@ -541,16 +544,41 @@ export default function Work() {
               </select>
             </div>
           </div>
+
+          {/* Filter Status */}
+          {(searchTerm || statusFilter !== "all") && (
+            <div className="mt-4 flex items-center justify-between bg-blue-50 p-3 rounded-lg border border-blue-200">
+              <span className="text-sm text-blue-800 font-medium">
+                Showing {filteredTasks.length} of {tasks.length} tasks
+              </span>
+              <button
+                onClick={() => {
+                  setSearchTerm("")
+                  setStatusFilter("all")
+                }}
+                className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-md transition-colors"
+              >
+                Clear Filters
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Tasks Table */}
-        <ReusableTable columns={columns} data={filteredTasks} emptyText="No tasks found" minWidth="1000px" />
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <ReusableTable 
+            columns={columns} 
+            data={filteredTasks} 
+            emptyText="No tasks found matching your filters" 
+            minWidth="1400px" 
+          />
+        </div>
       </div>
 
       {/* Status Update Modal */}
       {selectedTask && (
         <div
-           className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50"
+          className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50"
           onClick={(e) => e.target === e.currentTarget && setSelectedTask(null)}
         >
           <div

@@ -2,39 +2,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { Loader2, Plus, Building2, AlertCircle, CheckCircle, Edit3, Trash2, Save, X } from "lucide-react"
 import ReusableTable from "../components/ReusableTable"
-
-// API constants
-const API_BASE_URL = "https://curin-backend.onrender.com/api"
-const CACHE_DURATION = 3600 * 1000 // 1 hour
-
-// Cache utilities
-const cacheUtils = {
-  get: (key) => {
-    try {
-      const cached = localStorage.getItem(key)
-      if (!cached) return null
-      const parsed = JSON.parse(cached)
-      if (Date.now() - parsed.timestamp > CACHE_DURATION) {
-        localStorage.removeItem(key)
-        return null
-      }
-      return parsed.data
-    } catch {
-      localStorage.removeItem(key)
-      return null
-    }
-  },
-  set: (key, data) => {
-    try {
-      localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }))
-    } catch {
-      console.warn(`Failed to cache ${key}`)
-    }
-  },
-  remove: (key) => {
-    localStorage.removeItem(key)
-  }
-}
+import { organizationService } from "../services/api/organization"
 
 // Form field wrapper with icon + label
 function FormField({ label, icon: Icon, children, error, required }) {
@@ -63,26 +31,13 @@ export default function AddOrganizationsPage() {
   const [editName, setEditName] = useState("")
   const [deleteLoading, setDeleteLoading] = useState(null)
 
-  // Fetch organizations
+  // Fetch organizations using the service
   const fetchOrganizations = useCallback(async () => {
     setLoadingOrgs(true)
     try {
-      // Try cache first
-      let cached = cacheUtils.get("organizations")
-      if (cached) {
-        setOrganizations(cached)
-        setLoadingOrgs(false)
-        // Still fetch fresh data in background
-      }
-
-      const response = await fetch(`${API_BASE_URL}/org`)
-      if (!response.ok) throw new Error("Failed to fetch organizations")
-
-      const json = await response.json()
-      const data = json?.data?.organizations || []
-
-      cacheUtils.set("organizations", data)
-      setOrganizations(data)
+      const data = await organizationService.getAllOrganizations()
+      console.log("Organizations from service:", data) // Debug log
+      setOrganizations(Array.isArray(data) ? data : [])
     } catch (err) {
       console.error("Error fetching organizations:", err)
       setMessage("Failed to load organizations")
@@ -109,7 +64,7 @@ export default function AddOrganizationsPage() {
     setFormData({ ...formData, [field]: value })
   }
 
-  // Handle form submit
+  // Handle form submit using the service
   const handleSubmit = async (e) => {
     e.preventDefault()
     
@@ -121,34 +76,25 @@ export default function AddOrganizationsPage() {
 
     setLoading(true)
     try {
-      const response = await fetch(`${API_BASE_URL}/org/create`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: formData.name.trim(),
-          createdBy: "Admin" // You can change this to current user
-        }),
+      const result = await organizationService.createOrganization({
+        name: formData.name.trim(),
+        createdBy: "Admin" // You can change this to current user
       })
 
-      const data = await response.json()
-      
-      if (response.ok) {
+      if (result && (result.success || result.data)) {
         setMessage("Organization created successfully!")
         setIsSuccess(true)
         setFormData({ name: "" })
         
         // Refresh organizations list
         await fetchOrganizations()
-        
-        // Clear cache to ensure fresh data
-        cacheUtils.remove("organizations")
       } else {
-        setMessage(data.message || "Failed to create organization")
+        setMessage(result.message || "Failed to create organization")
         setIsSuccess(false)
       }
     } catch (error) {
       console.error("Error creating organization:", error)
-      setMessage("Server error, please try again")
+      setMessage(error.message || "Server error, please try again")
       setIsSuccess(false)
     } finally {
       setLoading(false)
@@ -161,7 +107,7 @@ export default function AddOrganizationsPage() {
     setEditName(org.name)
   }
 
-  // Handle save edit
+  // Handle save edit using the service
   const handleSaveEdit = async (orgId) => {
     if (!editName.trim()) {
       setMessage("Organization name cannot be empty")
@@ -170,17 +116,11 @@ export default function AddOrganizationsPage() {
     }
 
     try {
-      const response = await fetch(`${API_BASE_URL}/org/${orgId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: editName.trim(),
-        }),
+      const result = await organizationService.updateOrganization(orgId, {
+        name: editName.trim(),
       })
 
-      const data = await response.json()
-      
-      if (response.ok) {
+      if (result && (result.success || result.data)) {
         setMessage("Organization updated successfully!")
         setIsSuccess(true)
         setEditingId(null)
@@ -192,16 +132,13 @@ export default function AddOrganizationsPage() {
             org._id === orgId ? { ...org, name: editName.trim() } : org
           )
         )
-        
-        // Clear cache
-        cacheUtils.remove("organizations")
       } else {
-        setMessage(data.message || "Failed to update organization")
+        setMessage(result.message || "Failed to update organization")
         setIsSuccess(false)
       }
     } catch (error) {
       console.error("Error updating organization:", error)
-      setMessage("Server error, please try again")
+      setMessage(error.message || "Server error, please try again")
       setIsSuccess(false)
     }
   }
@@ -212,7 +149,7 @@ export default function AddOrganizationsPage() {
     setEditName("")
   }
 
-  // Handle delete
+  // Handle delete using the service
   const handleDelete = async (orgId, orgName) => {
     if (!confirm(`Are you sure you want to delete "${orgName}"? This action cannot be undone.`)) {
       return
@@ -220,27 +157,21 @@ export default function AddOrganizationsPage() {
 
     setDeleteLoading(orgId)
     try {
-      const response = await fetch(`${API_BASE_URL}/org/${orgId}`, {
-        method: "DELETE",
-      })
+      const result = await organizationService.deleteOrganization(orgId)
 
-      if (response.ok) {
+      if (result && (result.success || result.status === 200)) {
         setMessage("Organization deleted successfully!")
         setIsSuccess(true)
         
         // Update local state
         setOrganizations(orgs => orgs.filter(org => org._id !== orgId))
-        
-        // Clear cache
-        cacheUtils.remove("organizations")
       } else {
-        const data = await response.json()
-        setMessage(data.message || "Failed to delete organization")
+        setMessage(result.message || "Failed to delete organization")
         setIsSuccess(false)
       }
     } catch (error) {
       console.error("Error deleting organization:", error)
-      setMessage("Server error, please try again")
+      setMessage(error.message || "Server error, please try again")
       setIsSuccess(false)
     } finally {
       setDeleteLoading(null)

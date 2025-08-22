@@ -8,11 +8,11 @@ export const ENDPOINTS = {
     
     AUTH_LOGIN: '/auth/login',
 
-    TASK_ALL: '//tasks/getAAll',
-    TASK_CREATE: '//tasks/create',
-    TASK_BY_ID: (id) => `//tasks/getOne/${id}`,
-    TASK_UPDATE: (id) => `//tasks/update/${id}`,
-    TASK_DELETE: (id) => `//tasks/delete/${id}`,
+    TASK_ALL: '/tasks/getAll',
+    TASK_CREATE: '/tasks/create',
+    TASK_BY_ID: (id) => `/tasks/getOne/${id}`,
+    TASK_UPDATE: (id) => `/tasks/update/${id}`,
+    TASK_DELETE: (id) => `/tasks/delete/${id}`,
 
 
 
