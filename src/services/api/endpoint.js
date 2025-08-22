@@ -2,9 +2,9 @@ export const ENDPOINTS = {
     EMPLOYEE_CREATE: '/employees/create',
     EMPLOYEE_BY_ID: (id) => `/employees/get/${id}`,
     EMPLOYEES_ALL: '/employees/getAll',
-    EMPLOYEES_DELETE: (id) => `//employees/delete/${id}`,
-    EMPLOYEES_UPDATE: (id) => `//employees/update/${id}`,
-    EMPLOYEES_UPDATEPASS: '//employees/updatePass',
+    EMPLOYEES_DELETE: (id) => `/employees/delete/${id}`,
+    EMPLOYEES_UPDATE: (id) => `/employees/update/${id}`,
+    EMPLOYEES_UPDATEPASS: '/employees/updatePass',
     
     AUTH_LOGIN: '/auth/login',
 
@@ -21,5 +21,6 @@ export const ENDPOINTS = {
 
     INDUSTRY_ALL: '/industries/getAll',
 
-
+    USER_PROFILE: "/user/profile",
+    USERS: "/users",
 }
