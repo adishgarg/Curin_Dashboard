@@ -7,13 +7,14 @@ import Home from "./Page/Home"
 import Profile from "./Page/Profile"
 import Settings from "./Page/Settings"
 import LoginPage from "./Page/LoginPage"
-// (Optional) Reset Password page
 import ResetPasswordPage from "./Page/ResetPasswordPage"
 import AddUserPage from "./Page/AddUserPage"
 import AddOrganizationsPage from "./Page/AddOrganizationsPage"
 import AddIndustriesPage from "./Page/AddIndustriesPage"
 import AllUsers from "./Page/AllUsers"
 import CreateEventPage from "./Page/CreateEvent"
+import ProtectedRoute from "./components/AuthGuard"
+
 function AppContent() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const location = useLocation()
@@ -32,18 +33,21 @@ function AppContent() {
       {/* Main Content */}
       <div className={!hideSidebar ? "lg:ml-72 min-h-screen" : "min-h-screen"}>
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/work-progress" element={<Work />} />
-          <Route path="/create-task" element={<CreateTaskPage />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/settings" element={<Settings />} />
+          {/* Public Routes */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route path="/add-users" element={<AddUserPage />} />
-          <Route path="/manage-organizations" element={<AddOrganizationsPage />} />
-          <Route path="/manage-industries" element={<AddIndustriesPage />} />
-          <Route path="/manage-users" element={<AllUsers />} />
-          <Route path="/create-event" element={<CreateEventPage />} />
+
+          {/* Protected Routes */}
+          <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+          <Route path="/work-progress" element={<ProtectedRoute><Work /></ProtectedRoute>} />
+          <Route path="/create-task" element={<ProtectedRoute><CreateTaskPage /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+          <Route path="/add-users" element={<ProtectedRoute><AddUserPage /></ProtectedRoute>} />
+          <Route path="/manage-organizations" element={<ProtectedRoute><AddOrganizationsPage /></ProtectedRoute>} />
+          <Route path="/manage-industries" element={<ProtectedRoute><AddIndustriesPage /></ProtectedRoute>} />
+          <Route path="/manage-users" element={<ProtectedRoute><AllUsers /></ProtectedRoute>} />
+          <Route path="/create-event" element={<ProtectedRoute><CreateEventPage /></ProtectedRoute>} />
         </Routes>
       </div>
 
