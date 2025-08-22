@@ -5,37 +5,9 @@ import ReusableTable from "../components/ReusableTable"
 import EditButton from "../components/EditButton"
 import DeleteButton from "../components/DeleteButton"
 import { employeeService } from "../services/api/employees"
+import { organizationService } from "../services/api/organization"
 
-
-const CACHE_DURATION = 3600 * 1000 // 1 hour
-
-// Cache utilities (same as CreateTaskPage)
-const cacheUtils = {
-  get: (key) => {
-    try {
-      const cached = localStorage.getItem(key)
-      if (!cached) return null
-      const parsed = JSON.parse(cached)
-      if (Date.now() - parsed.timestamp > CACHE_DURATION) {
-        localStorage.removeItem(key)
-        return null
-      }
-      return parsed.data
-    } catch {
-      localStorage.removeItem(key)
-      return null
-    }
-  },
-  set: (key, data) => {
-    try {
-      localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }))
-    } catch {
-      console.warn(`Failed to cache ${key}`)
-    }
-  }
-}
-
-// Custom hook for fetching organizations using apiClient
+// Custom hook for fetching organizations using organizationService
 const useOrganizations = () => {
   const [organizations, setOrganizations] = useState([])
   const [loading, setLoading] = useState(true)
@@ -46,22 +18,17 @@ const useOrganizations = () => {
     setError(null)
 
     try {
-      // Check cache first
-      let cached = cacheUtils.get('organizations')
-      if (cached) {
-        setOrganizations(cached)
-        setLoading(false)
-        return
-      }
-
-      // Fetch from API using apiClient
-      const response = await apiClient.get('/org')
-      const data = response?.data?.organizations || []
+      // Use organizationService without caching
+      const response = await organizationService.getAllOrganizations()
       
-      if (Array.isArray(data)) {
-        cacheUtils.set('organizations', data)
-        setOrganizations(data)
+      let organizationData = []
+      if (response && response.success && Array.isArray(response.data)) {
+        organizationData = response.data
+      } else if (Array.isArray(response)) {
+        organizationData = response
       }
+      
+      setOrganizations(organizationData)
     } catch (err) {
       console.error("Error fetching organizations:", err)
       setError("Failed to load organizations")
@@ -91,25 +58,31 @@ const EditUserModal = ({ user, organizations, isOpen, onClose, onSave }) => {
 
   useEffect(() => {
     if (user) {
+      // Find the organization object from the list using the organization ID
+      const organizationObj = organizations.find(org => org._id === user.organization)
+      
       setFormData({
         firstName: user.firstName || "",
         lastName: user.lastName || "",
         email: user.email || "",
         phone: user.phone || "",
         designation: user.designation || "",
-        organization: user.organization || null
+        organization: organizationObj || null
       })
     }
-  }, [user])
+  }, [user, organizations])
 
   const handleSave = async () => {
     setLoading(true)
     try {
-      // Use employeeService instead of direct fetch
-      await employeeService.updateEmployee(user._id, formData)
+      // Prepare data for update - send organization ID instead of object
+      const updateData = {
+        ...formData,
+        organization: formData.organization?._id || formData.organization
+      }
       
-      // Clear cache to force refresh
-      localStorage.removeItem('employees')
+      await employeeService.updateEmployee(user._id, updateData)
+      
       onSave()
       onClose()
     } catch (error) {
@@ -232,9 +205,12 @@ const EmailExportModal = ({ users, organizations, isOpen, onClose }) => {
   const getFilteredEmails = () => {
     let filtered = users
     
-    // Apply organization filter
+    // Apply organization filter - handle both string ID and object
     if (filterType === 'organization' && selectedOrg) {
-      filtered = filtered.filter(user => user.organization?._id === selectedOrg)
+      filtered = filtered.filter(user => {
+        const userOrgId = typeof user.organization === 'string' ? user.organization : user.organization?._id
+        return userOrgId === selectedOrg
+      })
     }
     
     // Apply designation filter  
@@ -245,7 +221,10 @@ const EmailExportModal = ({ users, organizations, isOpen, onClose }) => {
     // Apply both filters if "both" is selected
     if (filterType === 'both') {
       if (selectedOrg) {
-        filtered = filtered.filter(user => user.organization?._id === selectedOrg)
+        filtered = filtered.filter(user => {
+          const userOrgId = typeof user.organization === 'string' ? user.organization : user.organization?._id
+          return userOrgId === selectedOrg
+        })
       }
       if (selectedDesignation) {
         filtered = filtered.filter(user => user.designation === selectedDesignation)
@@ -422,25 +401,23 @@ export default function AllUsersPage() {
     try {
       setLoading(true)
       
-      // Check cache first
-      let cached = cacheUtils.get('employees')
-      if (cached) {
-        setUsers(cached)
-        setLoading(false)
-        return
-      }
-
-      // Use employeeService instead of direct fetch
-      const employees = await employeeService.getAllEmployees()
+      // Fetch directly without caching
+      const employeeData = await employeeService.getAllEmployees()
       
-      if (Array.isArray(employees)) {
-        cacheUtils.set('employees', employees)
-        setUsers(employees)
+      console.log("Employee data from service:", employeeData) // Debug log
+      console.log("Employee data length:", employeeData.length) // Debug log
+      
+      if (Array.isArray(employeeData)) {
+        setUsers(employeeData)
+        setError("") // Clear any previous errors
+      } else {
+        console.error("Service returned non-array data:", employeeData)
+        setError("Invalid data format received from service")
       }
-      setError("")
+      
     } catch (error) {
-      setError("Failed to load users")
       console.error('Error fetching users:', error)
+      setError(`Failed to load users: ${error.message || 'Unknown error'}`)
     } finally {
       setLoading(false)
     }
@@ -458,11 +435,9 @@ export default function AllUsersPage() {
   const handleDelete = async (userId, userName) => {
     setDeleteLoading(userId)
     try {
-      // Use employeeService instead of direct fetch
-      await employeeService.deleteEmployees(userId)
+      await employeeService.deleteEmployee(userId)
       
-      // Clear cache and update state
-      localStorage.removeItem('employees')
+      // Update state directly without cache operations
       setUsers(prev => prev.filter(user => user._id !== userId))
     } catch (error) {
       console.error('Failed to delete user:', error)
@@ -475,13 +450,17 @@ export default function AllUsersPage() {
     fetchUsers() // Refresh the users list
   }
 
-  // Enhanced filtering - now supports both organization AND designation filters
+  // Enhanced filtering - handle organization as string ID
   const filteredUsers = users.filter(user => {
     const fullName = `${user.firstName || ''} ${user.lastName || ''}`.toLowerCase()
     const email = (user.email || '').toLowerCase()
     const phone = (user.phone || '').toLowerCase()
     const designation = (user.designation || '').toLowerCase()
-    const organization = (user.organization?.name || '').toLowerCase()
+    
+    // Handle organization name lookup
+    const userOrgId = typeof user.organization === 'string' ? user.organization : user.organization?._id
+    const orgName = organizations.find(org => org._id === userOrgId)?.name || ''
+    const organization = orgName.toLowerCase()
     
     const matchesSearch = searchTerm === '' || 
       fullName.includes(searchTerm.toLowerCase()) ||
@@ -490,10 +469,9 @@ export default function AllUsersPage() {
       designation.includes(searchTerm.toLowerCase()) ||
       organization.includes(searchTerm.toLowerCase())
 
-    const matchesOrg = organizationFilter === '' || user.organization?._id === organizationFilter
+    const matchesOrg = organizationFilter === '' || userOrgId === organizationFilter
     const matchesDesignation = designationFilter === '' || user.designation === designationFilter
 
-    // All filters must match (AND logic)
     return matchesSearch && matchesOrg && matchesDesignation
   })
 
@@ -558,16 +536,22 @@ export default function AllUsersPage() {
     },
     {
       header: "Organization",
-      render: user => (
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
-            <Building2 size={14} className="text-green-600" />
+      render: user => {
+        // Handle organization lookup when it's stored as ID
+        const userOrgId = typeof user.organization === 'string' ? user.organization : user.organization?._id
+        const organizationName = organizations.find(org => org._id === userOrgId)?.name || 'N/A'
+        
+        return (
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+              <Building2 size={14} className="text-green-600" />
+            </div>
+            <span className="text-gray-700 font-medium">
+              {organizationName === 'N/A' ? <span className="text-gray-400">N/A</span> : organizationName}
+            </span>
           </div>
-          <span className="text-gray-700 font-medium">
-            {user.organization?.name || <span className="text-gray-400">N/A</span>}
-          </span>
-        </div>
-      ),
+        )
+      },
       className: "min-w-[200px]"
     },
     {
@@ -597,7 +581,7 @@ export default function AllUsersPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">All Users</h1>
-          <p className="text-gray-600 mt-1">Manage and view all system users</p>
+          <p className="text-gray-600 mt-1">Manage and view all system users ({users.length} total)</p>
         </div>
         <button
           onClick={() => setEmailModalOpen(true)}
@@ -692,6 +676,13 @@ export default function AllUsersPage() {
         )}
       </div>
 
+      {/* Debug Information (remove in production) */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="bg-gray-100 p-3 rounded text-xs">
+          <strong>Debug:</strong> Users loaded: {users.length}, Organizations loaded: {organizations.length}
+        </div>
+      )}
+
       {/* Table Section */}
       {loading ? (
         <div className="flex items-center justify-center py-16 bg-white rounded-xl border border-gray-200">
@@ -707,6 +698,12 @@ export default function AllUsersPage() {
             <div>
               <h3 className="text-red-800 font-medium">Error Loading Users</h3>
               <p className="text-red-600">{error}</p>
+              <button 
+                onClick={fetchUsers}
+                className="mt-2 text-sm bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
+              >
+                Retry
+              </button>
             </div>
           </div>
         </div>

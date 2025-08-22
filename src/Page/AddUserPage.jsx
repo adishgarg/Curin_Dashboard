@@ -88,10 +88,23 @@ export default function AddUsersPage() {
       }
 
       // Use organizationService instead of apiClient
-      const data = await organizationService.getAllOrganizations()
+      const response = await organizationService.getAllOrganizations()
 
-      cacheUtils.set("organizations", data)
-      setOrgOptions(data.map((org) => ({ value: org._id, label: org.name })))
+      // Handle the actual response structure
+      let organizationData = []
+
+      if (response && response.success && Array.isArray(response.data)) {
+        organizationData = response.data
+      } else if (response && Array.isArray(response.organizations)) {
+        organizationData = response.organizations
+      } else if (Array.isArray(response)) {
+        organizationData = response
+      }
+
+      console.log("Organizations fetched:", organizationData) // Debug log
+
+      cacheUtils.set("organizations", organizationData)
+      setOrgOptions(organizationData.map((org) => ({ value: org._id, label: org.name })))
     } catch (err) {
       console.error("Error fetching organizations:", err)
       setMessage("Failed to load organizations")

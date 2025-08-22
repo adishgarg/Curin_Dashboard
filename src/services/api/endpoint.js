@@ -16,7 +16,7 @@ export const ENDPOINTS = {
 
 
 
-    ORGANIZATION_ALL: 'organizations/getAll',
+    ORGANIZATION_ALL: '/organizations/getAll',
 
 
 }
