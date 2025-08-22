@@ -41,6 +41,8 @@ const useDropdownData = () => {
         employeeService.getAllEmployees()
       ])
 
+      console.log("Fetched data:", { organizations, industries, employees }) // Debug log
+
       // Process organizations
       let organizationData = []
       if (organizations && organizations.success && Array.isArray(organizations.data)) {
@@ -49,13 +51,17 @@ const useDropdownData = () => {
         organizationData = organizations
       }
 
-      // Process industries
+      // Process industries - Updated to handle the actual data structure
       let industryData = []
-      if (industries && industries.success && Array.isArray(industries.data)) {
-        industryData = industries.data
-      } else if (Array.isArray(industries)) {
+      if (Array.isArray(industries)) {
         industryData = industries
+      } else if (industries && industries.success && Array.isArray(industries.data)) {
+        industryData = industries.data
+      } else if (industries && Array.isArray(industries.industries)) {
+        industryData = industries.industries
       }
+
+      console.log("Processed industry data:", industryData) // Debug log
 
       // Process employees
       let employeeData = []
@@ -69,10 +75,13 @@ const useDropdownData = () => {
         label: org.name,
       }))
 
+      // Updated industry mapping to handle the correct field name
       const industryOptions = industryData.map((ind) => ({
         value: ind._id,
-        label: ind.IndustryName,
+        label: ind.IndustryName, // This matches your backend data structure
       }))
+
+      console.log("Industry options:", industryOptions) // Debug log
 
       const employeeOptions = employeeData.map((emp) => ({
         value: emp._id,
@@ -84,6 +93,13 @@ const useDropdownData = () => {
         industries: industryOptions,
         employees: employeeOptions
       })
+
+      console.log("Final options set:", {
+        partners: partnerOptions.length,
+        industries: industryOptions.length,
+        employees: employeeOptions.length
+      }) // Debug log
+
     } catch (err) {
       console.error("Error fetching dropdown data:", err)
       setError("Failed to load dropdown options. Please refresh the page.")
@@ -284,6 +300,21 @@ export default function CreateTaskPage() {
           </div>
         </div>
 
+        {/* Debug Information - Remove in production */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="bg-gray-100 p-3 rounded text-xs mb-4">
+            <strong>Debug:</strong> 
+            Partners: {options.partners.length}, 
+            Industries: {options.industries.length}, 
+            Employees: {options.employees.length}
+            {options.industries.length > 0 && (
+              <div className="mt-1">
+                First industry: {JSON.stringify(options.industries[0])}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Options Loading/Error States */}
         {optionsLoading && <LoadingSpinner />}
         {optionsError && <ErrorMessage message={optionsError} onRetry={refetch} />}
@@ -361,7 +392,14 @@ export default function CreateTaskPage() {
                 placeholder="Select relevant industries"
                 styles={selectStyles}
                 isDisabled={options.industries.length === 0}
+                noOptionsMessage={() => "No industries available"}
               />
+              {/* Debug info for industries */}
+              {process.env.NODE_ENV === 'development' && options.industries.length === 0 && (
+                <div className="text-xs text-red-500 mt-1">
+                  Debug: No industries loaded. Check console for errors.
+                </div>
+              )}
             </FormField>
 
             {/* Date Fields */}
