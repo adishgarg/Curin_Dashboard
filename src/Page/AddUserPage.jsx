@@ -3,7 +3,7 @@ import Select from "react-select"
 import { Loader2, UserPlus, User, Mail, Phone, Briefcase, Building2, AlertCircle, CheckCircle, RefreshCw, Copy, Check } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { employeeService } from "../services/api/employees"
-import { apiClient } from "../services/api/client"
+import { organizationService } from "../services/api/organization"
 
 const CACHE_DURATION = 3600 * 1000 // 1 hour
 
@@ -53,17 +53,17 @@ export default function AddUsersPage() {
     lastName: "",
     email: "",
     phone: "",
-    password: "", // Added missing password field
+    password: "",
     designation: "User",
     organization: null,
-    // confirmPPI: false,
+    confirmPPI: false,
   })
   const [loading, setLoading] = useState(false)
   const [orgOptions, setOrgOptions] = useState([])
   const [loadingOrgs, setLoadingOrgs] = useState(true)
   const [message, setMessage] = useState("")
   const [isSuccess, setIsSuccess] = useState(false)
-  const [copied, setCopied] = useState(false) // Added missing copied state
+  const [copied, setCopied] = useState(false)
 
   const generatePassword = (length = 12) => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*-()_+"
@@ -76,7 +76,7 @@ export default function AddUsersPage() {
 
   const navigate = useNavigate()
 
-  // Fetch organizations with caching using apiClient
+  // Fetch organizations with caching using organizationService
   const fetchOrganizations = useCallback(async () => {
     setLoadingOrgs(true)
     try {
@@ -87,14 +87,15 @@ export default function AddUsersPage() {
         return
       }
 
-      // Use apiClient instead of direct fetch
-      const response = await apiClient.get("/org")
-      const data = response?.data?.organizations || []
+      // Use organizationService instead of apiClient
+      const data = await organizationService.getAllOrganizations()
 
       cacheUtils.set("organizations", data)
       setOrgOptions(data.map((org) => ({ value: org._id, label: org.name })))
     } catch (err) {
       console.error("Error fetching organizations:", err)
+      setMessage("Failed to load organizations")
+      setIsSuccess(false)
     } finally {
       setLoadingOrgs(false)
     }
@@ -133,10 +134,10 @@ export default function AddUsersPage() {
       setMessage("User created successfully!")
       setIsSuccess(true)
 
-      setTimeout(() => navigate("/"), 1000)
+      setTimeout(() => navigate("/manage-users"), 1500)
     } catch (error) {
       console.error("Error creating employee:", error)
-      setMessage("Failed to create user")
+      setMessage(error.message || "Failed to create user")
       setIsSuccess(false)
     } finally {
       setLoading(false)
