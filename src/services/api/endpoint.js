@@ -14,4 +14,9 @@ export const ENDPOINTS = {
     TASK_UPDATE:(id) => `tasks/update/${id}`,
     TASK_DELETE: (id) => `tasks/delete/${id}`,
 
+
+
+    ORGANIZATION_ALL: 'organizations/getAll',
+
+
 }
