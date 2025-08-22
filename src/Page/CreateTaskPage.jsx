@@ -1,11 +1,12 @@
-
 import { useState, useEffect, useCallback, useMemo } from "react"
 import Select from "react-select"
 import { Calendar, Users, Building2, Briefcase, FileText, Plus, CheckCircle, AlertCircle, Loader2 } from "lucide-react"
+import { taskService } from "../services/api/task"
+import { organizationService } from "../services/api/organization"
+import { employeeService } from "../services/api/employees"
+import { industryService } from "../services/api/industry"
 
 // Constants
-const API_BASE_URL = "https://curin-backend.onrender.com/api"
-const CACHE_DURATION = 3600 * 1000 // 1 hour
 const INITIAL_FORM_DATA = {
   taskName: "",
   partnerOrganizations: [],
@@ -16,33 +17,6 @@ const INITIAL_FORM_DATA = {
   createdBy: "AKsHaT",
   startDate: "",
   endDate: "",
-}
-
-// Cache utilities
-const cacheUtils = {
-  get: (key) => {
-    try {
-      const cached = localStorage.getItem(key)
-      if (!cached) return null
-      const parsed = JSON.parse(cached)
-      if (Date.now() - parsed.timestamp > CACHE_DURATION) {
-        localStorage.removeItem(key)
-        return null
-      }
-      return parsed.data
-    } catch {
-      localStorage.removeItem(key)
-      return null
-    }
-  },
-  set: (key, data) => {
-    try {
-      localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }))
-    } catch {
-      // Handle storage quota exceeded
-      console.warn(`Failed to cache ${key}`)
-    }
-  }
 }
 
 // Custom hook for fetching dropdown data
@@ -60,39 +34,50 @@ const useDropdownData = () => {
     setError(null)
 
     try {
-      // Define fetch functions
-      const fetchWithCache = async (endpoint, cacheKey, mapFn) => {
-        let cached = cacheUtils.get(cacheKey)
-        if (cached) return cached.map(mapFn)
+      // Fetch all data in parallel using the services
+      const [organizations, industries, employees] = await Promise.all([
+        organizationService.getAllOrganizations(),
+        industryService.getAllIndustries(),
+        employeeService.getAllEmployees()
+      ])
 
-        const response = await fetch(`${API_BASE_URL}/${endpoint}`)
-        if (!response.ok) throw new Error(`Failed to fetch ${endpoint}`)
-        
-        const json = await response.json()
-        const data = json?.data?.[cacheKey] || []
-        
-        if (Array.isArray(data)) {
-          cacheUtils.set(cacheKey, data)
-          return data.map(mapFn)
-        }
-        return []
+      // Process organizations
+      let organizationData = []
+      if (organizations && organizations.success && Array.isArray(organizations.data)) {
+        organizationData = organizations.data
+      } else if (Array.isArray(organizations)) {
+        organizationData = organizations
       }
 
-      // Fetch all data in parallel
-      const [partnerOptions, industryOptions, employeeOptions] = await Promise.all([
-        fetchWithCache('org', 'organizations', (org) => ({
-          value: org._id,
-          label: org.name,
-        })),
-        fetchWithCache('industries', 'industries', (ind) => ({
-          value: ind._id,
-          label: ind.IndustryName,
-        })),
-        fetchWithCache('employees', 'employees', (emp) => ({
-          value: emp._id,
-          label: emp.fullName || `${emp.firstName} ${emp.lastName}`,
-        }))
-      ])
+      // Process industries
+      let industryData = []
+      if (industries && industries.success && Array.isArray(industries.data)) {
+        industryData = industries.data
+      } else if (Array.isArray(industries)) {
+        industryData = industries
+      }
+
+      // Process employees
+      let employeeData = []
+      if (Array.isArray(employees)) {
+        employeeData = employees
+      }
+
+      // Map data to select options
+      const partnerOptions = organizationData.map((org) => ({
+        value: org._id,
+        label: org.name,
+      }))
+
+      const industryOptions = industryData.map((ind) => ({
+        value: ind._id,
+        label: ind.IndustryName,
+      }))
+
+      const employeeOptions = employeeData.map((emp) => ({
+        value: emp._id,
+        label: emp.fullName || `${emp.firstName} ${emp.lastName}`,
+      }))
 
       setOptions({
         partners: partnerOptions,
@@ -167,6 +152,7 @@ export default function CreateTaskPage() {
   const [isSuccess, setIsSuccess] = useState(false)
   
   const { options, loading: optionsLoading, error: optionsError, refetch } = useDropdownData()
+
   // Memoized validation function
   const validateForm = useCallback(() => {
     const newErrors = {}
@@ -200,7 +186,7 @@ export default function CreateTaskPage() {
     }
   }, [errors])
 
-  // Optimized submit handler
+  // Optimized submit handler using taskService
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault()
 
@@ -213,46 +199,42 @@ export default function CreateTaskPage() {
     setIsSuccess(false)
 
     try {
-      const response = await fetch(`${API_BASE_URL}/tasks/create`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          taskName: formData.taskName,
-          partnerOrganizations: formData.partnerOrganizations.map((org) => ({
-            id: org.value,
-            name: org.label,
-          })),
-          employeesAssigned: formData.employeesAssigned.map((emp) => ({
-            id: emp.value,
-            name: emp.label,
-          })),
-          industriesInvolved: formData.industriesInvolved.map((i) => ({
-            id: i.value,
-            name: i.label,
-          })),
-          status: formData.status,
-          createdBy: formData.createdBy,
-          startDate: formData.startDate || null,
-          endDate: formData.endDate || null,
-          description: formData.description,
-          userTimestamp: new Date(),
-        }),
-      })
+      const taskData = {
+        taskName: formData.taskName,
+        partnerOrganizations: formData.partnerOrganizations.map((org) => ({
+          id: org.value,
+          name: org.label,
+        })),
+        employeesAssigned: formData.employeesAssigned.map((emp) => ({
+          id: emp.value,
+          name: emp.label,
+        })),
+        industriesInvolved: formData.industriesInvolved.map((i) => ({
+          id: i.value,
+          name: i.label,
+        })),
+        status: formData.status,
+        createdBy: formData.createdBy,
+        startDate: formData.startDate || null,
+        endDate: formData.endDate || null,
+        description: formData.description,
+        userTimestamp: new Date(),
+      }
 
-      const data = await response.json()
+      const response = await taskService.createTask(taskData)
       
-      if (response.ok) {
+      if (response && (response.success || response.data)) {
         setMessage("Task created successfully!")
         setIsSuccess(true)
         setFormData(INITIAL_FORM_DATA)
         setErrors({})
       } else {
-        setMessage(data.message || "Failed to create task")
+        setMessage(response.message || "Failed to create task")
         setIsSuccess(false)
       }
     } catch (err) {
       console.error("Error creating task:", err)
-      setMessage("Server error, please try again")
+      setMessage(err.message || "Server error, please try again")
       setIsSuccess(false)
     } finally {
       setLoading(false)

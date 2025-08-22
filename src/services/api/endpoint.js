@@ -19,4 +19,7 @@ export const ENDPOINTS = {
     ORGANIZATION_ALL: '/organizations/getAll',
 
 
+    INDUSTRY_ALL: '/industries/getAll',
+
+
 }
