@@ -15,6 +15,7 @@ import {
   Calendar,
   UserCheck,
   LogOut,
+  DollarSign,
 } from "lucide-react"
 import { userService } from "../services/api/user"
 import { logoutService } from "../services/api/logout"
@@ -138,6 +139,14 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
         { name: "Manage", icon: Edit3, href: "/manage-events" },
         { name: "My Events", icon: Calendar, href: "/my-events" },
         { name: "Events", icon: Calendar, href: "/events" },
+       
+      ],
+    },
+    finance: {
+      name: "Finance",
+      icon: DollarSign,
+      items: [
+        { name: "Manage Finance", icon: DollarSign, href: "/manage-finance" },
       ],
     },
   }
@@ -210,6 +219,14 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
       >
         {sidebarOpen ? <X size={22} className="text-gray-100" /> : <Menu size={22} className="text-gray-100" />}
       </button>
+
+      {/* Mobile Backdrop Overlay */}
+      {sidebarOpen && isMobile && (
+        <div
+          className="fixed inset-0 z-30 bg-black/30 backdrop-blur-sm lg:hidden transition-all duration-300"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
 
       {/* Sidebar */}
       <div

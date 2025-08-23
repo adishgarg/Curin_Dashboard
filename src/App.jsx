@@ -14,6 +14,7 @@ import AddIndustriesPage from "./Page/AddIndustriesPage"
 import AllUsers from "./Page/AllUsers"
 import CreateEventPage from "./Page/CreateEvent"
 import ProtectedRoute from "./components/AuthGuard"
+import ManageEvents from "./Page/ManageEvents"
 
 function AppContent() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -48,7 +49,12 @@ function AppContent() {
           <Route path="/manage-industries" element={<ProtectedRoute><AddIndustriesPage /></ProtectedRoute>} />
           <Route path="/manage-users" element={<ProtectedRoute><AllUsers /></ProtectedRoute>} />
           <Route path="/create-event" element={<ProtectedRoute><CreateEventPage /></ProtectedRoute>} />
+          <Route path="/manage-events" element={<ProtectedRoute><ManageEvents /></ProtectedRoute>} />
         </Routes>
+
+        
+        
+        
       </div>
 
       {/* Overlay for mobile sidebar */}
