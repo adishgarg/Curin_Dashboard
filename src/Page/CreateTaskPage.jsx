@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from "react"
 import Select from "react-select"
-import { Calendar, Users, Building2, Briefcase, FileText, Plus, CheckCircle, AlertCircle, Loader2 } from "lucide-react"
+import { Calendar, Users, Building2, Briefcase, FileText, Plus, CheckCircle, AlertCircle, Loader2, Upload, X, File } from "lucide-react"
 import { taskService } from "../services/api/task"
 import { organizationService } from "../services/api/organization"
 import { employeeService } from "../services/api/employees"
 import { industryService } from "../services/api/industry"
+import { fileUploadService } from "../services/api/fileUpload"
 
 // Constants
 const INITIAL_FORM_DATA = {
@@ -12,11 +13,12 @@ const INITIAL_FORM_DATA = {
   partnerOrganizations: [],
   employeesAssigned: [],
   industriesInvolved: [],
-  status: "active",
+  status: "in-progress",
   description: "",
-  createdBy: "AKsHaT",
+  createdBy: { id: "", name: "" },
   startDate: "",
   endDate: "",
+  files: [],
 }
 
 // Custom hook for fetching dropdown data
@@ -131,6 +133,249 @@ const FormField = ({ label, icon: Icon, error, children, required = false }) => 
   </div>
 )
 
+// File Upload component
+const FileUpload = ({ files, onFilesChange, error }) => {
+  const [isDragOver, setIsDragOver] = useState(false)
+  const [uploadedFiles, setUploadedFiles] = useState(files || [])
+  const [uploading, setUploading] = useState(false)
+
+  // Handle file selection
+  const handleFileSelect = useCallback(async (selectedFiles) => {
+    const fileArray = Array.from(selectedFiles)
+    
+    // Validate files
+    const validFiles = []
+    const invalidFiles = []
+    
+    fileArray.forEach(file => {
+      const validation = fileUploadService.validateFile(file, {
+        maxSize: 10 * 1024 * 1024, // 10MB
+        allowedTypes: [], // Allow all types
+      })
+      
+      if (validation.isValid) {
+        validFiles.push(file)
+      } else {
+        invalidFiles.push({ file, errors: validation.errors })
+      }
+    })
+    
+    // Show validation errors
+    if (invalidFiles.length > 0) {
+      const errorMessages = invalidFiles.map(({ file, errors }) => 
+        `${file.name}: ${errors.join(', ')}`
+      ).join('\n')
+      alert(`Some files were rejected:\n${errorMessages}`)
+    }
+    
+    if (validFiles.length === 0) return
+    
+    setUploading(true)
+    
+    try {
+      // Try to upload files immediately (optional - can also upload on form submit)
+      const uploadResults = await fileUploadService.uploadFiles(validFiles)
+      
+      const newFiles = [
+        // Successfully uploaded files
+        ...uploadResults.successful.map(result => ({
+          name: result.filename,
+          size: result.originalFile.size,
+          url: result.url,
+          uploaded: true,
+          file: null, // Clear file object after upload
+        })),
+        // Files that failed to upload (keep for retry)
+        ...uploadResults.failed.map(({ file, error }) => ({
+          file,
+          name: file.name,
+          size: file.size,
+          url: URL.createObjectURL(file),
+          uploaded: false,
+          error,
+        }))
+      ]
+      
+      const updatedFiles = [...uploadedFiles, ...newFiles]
+      setUploadedFiles(updatedFiles)
+      onFilesChange(updatedFiles)
+    } catch (error) {
+      console.warn("Upload failed, files will be uploaded on form submit:", error)
+      
+      // Fallback: Add files to queue for upload on form submit
+      const newFiles = validFiles.map(file => ({
+        file,
+        name: file.name,
+        size: file.size,
+        url: URL.createObjectURL(file),
+        uploaded: false
+      }))
+      
+      const updatedFiles = [...uploadedFiles, ...newFiles]
+      setUploadedFiles(updatedFiles)
+      onFilesChange(updatedFiles)
+    } finally {
+      setUploading(false)
+    }
+  }, [uploadedFiles, onFilesChange])
+
+  // Handle drag and drop
+  const handleDragOver = useCallback((e) => {
+    e.preventDefault()
+    setIsDragOver(true)
+  }, [])
+
+  const handleDragLeave = useCallback((e) => {
+    e.preventDefault()
+    setIsDragOver(false)
+  }, [])
+
+  const handleDrop = useCallback((e) => {
+    e.preventDefault()
+    setIsDragOver(false)
+    const droppedFiles = e.dataTransfer.files
+    if (droppedFiles.length > 0) {
+      handleFileSelect(droppedFiles)
+    }
+  }, [handleFileSelect])
+
+  // Remove file
+  const removeFile = useCallback(async (index) => {
+    const fileToRemove = uploadedFiles[index]
+    
+    // If file was uploaded, try to delete it from server
+    if (fileToRemove.uploaded && fileToRemove.url) {
+      try {
+        await fileUploadService.deleteFile(fileToRemove.url)
+      } catch (error) {
+        console.warn("Failed to delete file from server:", error)
+      }
+    }
+    
+    const updatedFiles = uploadedFiles.filter((_, i) => i !== index)
+    setUploadedFiles(updatedFiles)
+    onFilesChange(updatedFiles)
+  }, [uploadedFiles, onFilesChange])
+
+  // Format file size
+  const formatFileSize = (bytes) => {
+    return fileUploadService.formatFileSize(bytes)
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Upload Area */}
+      <div
+        className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+          isDragOver
+            ? "border-blue-500 bg-blue-50"
+            : error
+            ? "border-red-300 bg-red-50"
+            : "border-gray-300 hover:border-gray-400"
+        }`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        <Upload className="mx-auto h-8 w-8 text-gray-400 mb-2" />
+        <div className="text-sm text-gray-600 mb-2">
+          <span className="font-medium">Click to upload</span> or drag and drop files here
+        </div>
+        <div className="text-xs text-gray-500">
+          Support for images, documents, and other file types (Max 10MB each)
+        </div>
+        <input
+          type="file"
+          multiple
+          accept="*/*"
+          onChange={(e) => handleFileSelect(e.target.files)}
+          className="hidden"
+          id="file-upload"
+          disabled={uploading}
+        />
+        <label
+          htmlFor="file-upload"
+          className={`mt-3 inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer ${
+            uploading ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
+        >
+          {uploading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Uploading...
+            </>
+          ) : (
+            <>
+              <Upload className="h-4 w-4 mr-2" />
+              Choose Files
+            </>
+          )}
+        </label>
+      </div>
+
+      {/* Uploaded Files List */}
+      {uploadedFiles.length > 0 && (
+        <div className="space-y-2">
+          <h4 className="text-sm font-medium text-gray-700">
+            Attached Files ({uploadedFiles.length})
+          </h4>
+          <div className="space-y-2 max-h-40 overflow-y-auto">
+            {uploadedFiles.map((fileObj, index) => (
+              <div
+                key={index}
+                className={`flex items-center justify-between p-3 rounded-lg border ${
+                  fileObj.uploaded 
+                    ? 'bg-green-50 border-green-200' 
+                    : fileObj.error
+                    ? 'bg-red-50 border-red-200'
+                    : 'bg-gray-50 border-gray-200'
+                }`}
+              >
+                <div className="flex items-center space-x-3 flex-1">
+                  <File className={`h-5 w-5 flex-shrink-0 ${
+                    fileObj.uploaded 
+                      ? 'text-green-500' 
+                      : fileObj.error
+                      ? 'text-red-500'
+                      : 'text-gray-400'
+                  }`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {fileObj.name}
+                    </p>
+                    <div className="flex items-center space-x-2">
+                      <p className="text-xs text-gray-500">
+                        {formatFileSize(fileObj.size)}
+                      </p>
+                      {fileObj.uploaded && (
+                        <span className="text-xs text-green-600 font-medium">✓ Uploaded</span>
+                      )}
+                      {fileObj.error && (
+                        <span className="text-xs text-red-600 font-medium">✗ Failed</span>
+                      )}
+                    </div>
+                    {fileObj.error && (
+                      <p className="text-xs text-red-500 mt-1">{fileObj.error}</p>
+                    )}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeFile(index)}
+                  className="ml-3 flex-shrink-0 p-1 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                  aria-label={`Remove ${fileObj.name}`}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // Loading component
 const LoadingSpinner = () => (
   <div className="flex items-center justify-center py-8">
@@ -169,12 +414,56 @@ export default function CreateTaskPage() {
   
   const { options, loading: optionsLoading, error: optionsError, refetch } = useDropdownData()
 
-  // Memoized validation function
+  // Updated useEffect to set both name and id
+  useEffect(() => {
+    try {
+      const user = localStorage.getItem('user')
+      if (user) {
+        const parsedUser = JSON.parse(user)
+        const createdBy = {
+          id: parsedUser._id || parsedUser.id || '',
+          name: parsedUser.fullName || parsedUser.name || 'Unknown User'
+        }
+        setFormData(prev => ({ ...prev, createdBy }))
+      } else {
+        // Fallback - try to get separate values
+        const userId = localStorage.getItem('userId') || ''
+        const fullName = localStorage.getItem('fullName') || 'Unknown User'
+        setFormData(prev => ({ 
+          ...prev, 
+          createdBy: { id: userId, name: fullName }
+        }))
+      }
+    } catch (error) {
+      console.error('Error parsing user from localStorage:', error)
+      // Fallback
+      const userId = localStorage.getItem('userId') || ''
+      const fullName = localStorage.getItem('fullName') || 'Unknown User'
+      setFormData(prev => ({ 
+        ...prev, 
+        createdBy: { id: userId, name: fullName }
+      }))
+    }
+  }, [])
+
+  // Updated validation function
   const validateForm = useCallback(() => {
     const newErrors = {}
 
     if (!formData.taskName.trim()) {
       newErrors.taskName = "Task name is required"
+    }
+
+    if (!formData.createdBy.name.trim()) {
+      newErrors.createdBy = "Creator name is required"
+    }
+
+    if (!formData.createdBy.id.trim()) {
+      newErrors.createdBy = "Creator ID is required"
+    }
+
+    if (!formData.description.trim()) {
+      newErrors.description = "Description is required"
     }
 
     if (formData.partnerOrganizations.length === 0) {
@@ -193,16 +482,25 @@ export default function CreateTaskPage() {
     return Object.keys(newErrors).length === 0
   }, [formData])
 
-  // Optimized form update handler
+  // Updated form update handler for createdBy
   const updateFormData = useCallback((field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
+    if (field === 'createdBy') {
+      // Handle createdBy updates specially
+      setFormData(prev => ({ 
+        ...prev, 
+        createdBy: { ...prev.createdBy, ...value }
+      }))
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }))
+    }
+    
     // Clear error for this field when user starts typing
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }))
     }
   }, [errors])
 
-  // Optimized submit handler using taskService
+  // Updated submit handler
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault()
 
@@ -215,34 +513,102 @@ export default function CreateTaskPage() {
     setIsSuccess(false)
 
     try {
+      // Process files - upload them if they haven't been uploaded yet
+      let processedFiles = []
+      
+      if (formData.files && formData.files.length > 0) {
+        console.log("Processing files for task creation...") // Debug log
+        
+        // Check if your backend supports file upload
+        const hasFileUploadEndpoint = true // Set this based on your backend capabilities
+        
+        if (hasFileUploadEndpoint) {
+          try {
+            // Method 1: Upload files to your server first
+            const filesToUpload = formData.files.filter(fileObj => !fileObj.uploaded && fileObj.file)
+            
+            if (filesToUpload.length > 0) {
+              console.log(`Uploading ${filesToUpload.length} files...`)
+              const uploadResults = await fileUploadService.uploadFiles(
+                filesToUpload.map(fileObj => fileObj.file)
+              )
+              
+              // Combine uploaded URLs with already uploaded files
+              processedFiles = [
+                ...uploadResults.successful.map(result => result.url),
+                ...formData.files.filter(fileObj => fileObj.uploaded).map(fileObj => fileObj.url)
+              ]
+              
+              // Log failed uploads
+              if (uploadResults.failed.length > 0) {
+                console.warn("Some files failed to upload:", uploadResults.failed)
+                // You could show a warning to the user here
+              }
+            } else {
+              // All files already uploaded
+              processedFiles = formData.files.map(fileObj => fileObj.url)
+            }
+          } catch (uploadError) {
+            console.error("File upload failed:", uploadError)
+            throw new Error(`File upload failed: ${uploadError.message}`)
+          }
+        } else {
+          // Method 2: Send files as base64 in the request (for small files only)
+          console.log("Converting files to base64...")
+          processedFiles = await Promise.all(
+            formData.files.map(async (fileObj) => {
+              if (fileObj.uploaded && fileObj.url) {
+                return fileObj.url // Already uploaded
+              }
+              
+              // Convert file to base64 (only for small files < 1MB)
+              if (fileObj.file && fileObj.file.size < 1024 * 1024) {
+                return new Promise((resolve) => {
+                  const reader = new FileReader()
+                  reader.onload = () => resolve(reader.result)
+                  reader.readAsDataURL(fileObj.file)
+                })
+              }
+              
+              // For larger files, just send the filename (backend needs to handle this)
+              return fileObj.name
+            })
+          )
+        }
+      }
+
       const taskData = {
         taskName: formData.taskName,
-        partnerOrganizations: formData.partnerOrganizations.map((org) => ({
-          id: org.value,
-          name: org.label,
-        })),
+        description: formData.description,
+        createdBy: formData.createdBy,
         employeesAssigned: formData.employeesAssigned.map((emp) => ({
           id: emp.value,
           name: emp.label,
+        })),
+        status: formData.status,
+        startDate: formData.startDate || null,
+        endDate: formData.endDate || null,
+        files: processedFiles,
+        partnerOrganizations: formData.partnerOrganizations.map((org) => ({
+          id: org.value,
+          name: org.label,
         })),
         industriesInvolved: formData.industriesInvolved.map((i) => ({
           id: i.value,
           name: i.label,
         })),
-        status: formData.status,
-        createdBy: formData.createdBy,
-        startDate: formData.startDate || null,
-        endDate: formData.endDate || null,
-        description: formData.description,
-        userTimestamp: new Date(),
       }
+
+      console.log("Sending task data:", taskData) // Debug log
 
       const response = await taskService.createTask(taskData)
       
       if (response && (response.success || response.data)) {
         setMessage("Task created successfully!")
         setIsSuccess(true)
-        setFormData(INITIAL_FORM_DATA)
+        // Reset form but keep createdBy info
+        const currentCreatedBy = formData.createdBy
+        setFormData({ ...INITIAL_FORM_DATA, createdBy: currentCreatedBy })
         setErrors({})
       } else {
         setMessage(response.message || "Failed to create task")
@@ -306,7 +672,8 @@ export default function CreateTaskPage() {
             <strong>Debug:</strong> 
             Partners: {options.partners.length}, 
             Industries: {options.industries.length}, 
-            Employees: {options.employees.length}
+            Employees: {options.employees.length},
+            Created By: {JSON.stringify(formData.createdBy)}
             {options.industries.length > 0 && (
               <div className="mt-1">
                 First industry: {JSON.stringify(options.industries[0])}
@@ -428,18 +795,29 @@ export default function CreateTaskPage() {
             </div>
 
             {/* Description */}
-            <FormField label="Detailed Description" icon={FileText}>
+            <FormField label="Detailed Description" icon={FileText} error={errors.description} required>
               <textarea
-                placeholder="Provide detailed description of the task (optional)"
+                placeholder="Provide detailed description of the task"
                 value={formData.description}
                 onChange={(e) => updateFormData('description', e.target.value)}
                 rows="4"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                maxLength={1000}
+                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none ${
+                  errors.description ? "border-red-300" : "border-gray-300"
+                }`}
+                aria-describedby={errors.description ? "description-error" : undefined}
               />
               <div className="text-sm text-gray-500 mt-1">
-                {formData.description.length}/1000 characters
+                {formData.description.length} characters
               </div>
+            </FormField>
+
+            {/* File Upload */}
+            <FormField label="Attachments" icon={Upload} error={errors.files}>
+              <FileUpload
+                files={formData.files}
+                onFilesChange={(files) => updateFormData('files', files)}
+                error={errors.files}
+              />
             </FormField>
 
             {/* Submit Button */}

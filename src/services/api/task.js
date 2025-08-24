@@ -5,7 +5,9 @@ import { ENDPOINTS } from "./endpoint";
 export const taskService = {
     async getAllTasks() {
         const response = await apiClient.get(ENDPOINTS.TASK_ALL);
-        return response.data?.tasks || [];
+        console.log("Raw API response:", response); // Debug log
+        // Handle both possible response formats
+        return response.data || response.tasks || [];
     },
 
     async getTaskById(id) {

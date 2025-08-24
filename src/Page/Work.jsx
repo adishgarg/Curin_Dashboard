@@ -32,6 +32,18 @@ const DEFAULT_DATE_RANGE = {
 
 // Status configuration
 const STATUS_CONFIG = {
+  pending: {
+    icon: Clock,
+    color: "bg-gray-50 text-gray-700 border-gray-200",
+    text: "Pending",
+    buttonColor: "border-gray-500 bg-gray-50 text-gray-700",
+  },
+  "in-progress": {
+    icon: Clock,
+    color: "bg-blue-50 text-blue-700 border-blue-200",
+    text: "In Progress",
+    buttonColor: "border-blue-500 bg-blue-50 text-blue-700",
+  },
   active: {
     icon: Clock,
     color: "bg-blue-50 text-blue-700 border-blue-200",
@@ -94,8 +106,13 @@ const useTasksData = () => {
       if (Array.isArray(data)) {
         const tasksWithDates = data.map((task) => ({
           ...task,
-          startDate: task.startDate || DEFAULT_DATE_RANGE.startDate,
-          endDate: task.endDate || DEFAULT_DATE_RANGE.endDate,
+          _id: task.id || task._id, // Map id to _id for consistency
+          startDate: task.startDate ? new Date(task.startDate) : DEFAULT_DATE_RANGE.startDate,
+          endDate: task.endDate ? new Date(task.endDate) : DEFAULT_DATE_RANGE.endDate,
+          // Ensure arrays have proper structure
+          employeesAssigned: task.employeesAssigned || [],
+          partnerOrganizations: task.partnerOrganizations || [],
+          industriesInvolved: task.industriesInvolved || [],
         }))
         setTasks(tasksWithDates)
       } else {
@@ -538,6 +555,8 @@ export default function Work() {
                 aria-label="Filter by status"
               >
                 <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="in-progress">In Progress</option>
                 <option value="active">Active</option>
                 <option value="completed">Completed</option>
                 <option value="cancelled">Cancelled</option>

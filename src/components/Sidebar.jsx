@@ -83,7 +83,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
 
   // Check if user is PPI (has admin privileges)
   const isPPI = () => {
-    return userData?.designation?.toUpperCase() === "PPI"
+    return userData?.designation?.toUpperCase() === "PPI" || userData?.designation?.toUpperCase() === "LPI"
   }
 
   // Basic menus that everyone can see
