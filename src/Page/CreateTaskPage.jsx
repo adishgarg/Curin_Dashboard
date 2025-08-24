@@ -5,7 +5,6 @@ import { taskService } from "../services/api/task"
 import { organizationService } from "../services/api/organization"
 import { employeeService } from "../services/api/employees"
 import { industryService } from "../services/api/industry"
-import { fileUploadService } from "../services/api/fileUpload"
 
 // Constants
 const INITIAL_FORM_DATA = {
@@ -137,10 +136,46 @@ const FormField = ({ label, icon: Icon, error, children, required = false }) => 
 const FileUpload = ({ files, onFilesChange, error }) => {
   const [isDragOver, setIsDragOver] = useState(false)
   const [uploadedFiles, setUploadedFiles] = useState(files || [])
-  const [uploading, setUploading] = useState(false)
+
+  // Simple file validation
+  const validateFile = useCallback((file, options = {}) => {
+    const {
+      maxSize = 10 * 1024 * 1024, // 10MB default
+      allowedTypes = [], // Empty array means all types allowed
+    } = options
+
+    const errors = []
+
+    // Check file size
+    if (file.size > maxSize) {
+      errors.push(`File size must be less than ${formatFileSize(maxSize)}`)
+    }
+
+    // Check file type if specified
+    if (allowedTypes.length > 0) {
+      const fileExtension = file.name.split('.').pop()?.toLowerCase()
+      if (!allowedTypes.includes(fileExtension)) {
+        errors.push(`File type .${fileExtension} is not allowed`)
+      }
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors
+    }
+  }, [])
+
+  // Format file size
+  const formatFileSize = useCallback((bytes) => {
+    if (bytes === 0) return '0 Bytes'
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  }, [])
 
   // Handle file selection
-  const handleFileSelect = useCallback(async (selectedFiles) => {
+  const handleFileSelect = useCallback((selectedFiles) => {
     const fileArray = Array.from(selectedFiles)
     
     // Validate files
@@ -148,9 +183,9 @@ const FileUpload = ({ files, onFilesChange, error }) => {
     const invalidFiles = []
     
     fileArray.forEach(file => {
-      const validation = fileUploadService.validateFile(file, {
+      const validation = validateFile(file, {
         maxSize: 10 * 1024 * 1024, // 10MB
-        allowedTypes: [], // Allow all types
+        allowedTypes: [], // Allow all types for now
       })
       
       if (validation.isValid) {
@@ -170,54 +205,21 @@ const FileUpload = ({ files, onFilesChange, error }) => {
     
     if (validFiles.length === 0) return
     
-    setUploading(true)
+    // Add valid files to the queue (they'll be uploaded when task is created)
+    const newFiles = validFiles.map(file => ({
+      file,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      url: URL.createObjectURL(file), // For preview only
+      uploaded: false, // Will be uploaded during task creation
+      status: 'ready' // ready, uploading, uploaded, failed
+    }))
     
-    try {
-      // Try to upload files immediately (optional - can also upload on form submit)
-      const uploadResults = await fileUploadService.uploadFiles(validFiles)
-      
-      const newFiles = [
-        // Successfully uploaded files
-        ...uploadResults.successful.map(result => ({
-          name: result.filename,
-          size: result.originalFile.size,
-          url: result.url,
-          uploaded: true,
-          file: null, // Clear file object after upload
-        })),
-        // Files that failed to upload (keep for retry)
-        ...uploadResults.failed.map(({ file, error }) => ({
-          file,
-          name: file.name,
-          size: file.size,
-          url: URL.createObjectURL(file),
-          uploaded: false,
-          error,
-        }))
-      ]
-      
-      const updatedFiles = [...uploadedFiles, ...newFiles]
-      setUploadedFiles(updatedFiles)
-      onFilesChange(updatedFiles)
-    } catch (error) {
-      console.warn("Upload failed, files will be uploaded on form submit:", error)
-      
-      // Fallback: Add files to queue for upload on form submit
-      const newFiles = validFiles.map(file => ({
-        file,
-        name: file.name,
-        size: file.size,
-        url: URL.createObjectURL(file),
-        uploaded: false
-      }))
-      
-      const updatedFiles = [...uploadedFiles, ...newFiles]
-      setUploadedFiles(updatedFiles)
-      onFilesChange(updatedFiles)
-    } finally {
-      setUploading(false)
-    }
-  }, [uploadedFiles, onFilesChange])
+    const updatedFiles = [...uploadedFiles, ...newFiles]
+    setUploadedFiles(updatedFiles)
+    onFilesChange(updatedFiles)
+  }, [uploadedFiles, onFilesChange, validateFile])
 
   // Handle drag and drop
   const handleDragOver = useCallback((e) => {
@@ -240,27 +242,11 @@ const FileUpload = ({ files, onFilesChange, error }) => {
   }, [handleFileSelect])
 
   // Remove file
-  const removeFile = useCallback(async (index) => {
-    const fileToRemove = uploadedFiles[index]
-    
-    // If file was uploaded, try to delete it from server
-    if (fileToRemove.uploaded && fileToRemove.url) {
-      try {
-        await fileUploadService.deleteFile(fileToRemove.url)
-      } catch (error) {
-        console.warn("Failed to delete file from server:", error)
-      }
-    }
-    
+  const removeFile = useCallback((index) => {
     const updatedFiles = uploadedFiles.filter((_, i) => i !== index)
     setUploadedFiles(updatedFiles)
     onFilesChange(updatedFiles)
   }, [uploadedFiles, onFilesChange])
-
-  // Format file size
-  const formatFileSize = (bytes) => {
-    return fileUploadService.formatFileSize(bytes)
-  }
 
   return (
     <div className="space-y-4">
@@ -282,7 +268,7 @@ const FileUpload = ({ files, onFilesChange, error }) => {
           <span className="font-medium">Click to upload</span> or drag and drop files here
         </div>
         <div className="text-xs text-gray-500">
-          Support for images, documents, and other file types (Max 10MB each)
+          Files will be uploaded to Google Drive when you create the task (Max 10MB each)
         </div>
         <input
           type="file"
@@ -291,51 +277,46 @@ const FileUpload = ({ files, onFilesChange, error }) => {
           onChange={(e) => handleFileSelect(e.target.files)}
           className="hidden"
           id="file-upload"
-          disabled={uploading}
         />
         <label
           htmlFor="file-upload"
-          className={`mt-3 inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer ${
-            uploading ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
+          className="mt-3 inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 cursor-pointer"
         >
-          {uploading ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Uploading...
-            </>
-          ) : (
-            <>
-              <Upload className="h-4 w-4 mr-2" />
-              Choose Files
-            </>
-          )}
+          <Upload className="h-4 w-4 mr-2" />
+          Choose Files
         </label>
       </div>
 
-      {/* Uploaded Files List */}
+      {/* Files Queue */}
       {uploadedFiles.length > 0 && (
         <div className="space-y-2">
           <h4 className="text-sm font-medium text-gray-700">
-            Attached Files ({uploadedFiles.length})
+            Files Ready for Upload ({uploadedFiles.length})
           </h4>
+          <div className="text-xs text-gray-500 mb-3">
+            These files will be uploaded to Google Drive when you create the task
+          </div>
           <div className="space-y-2 max-h-40 overflow-y-auto">
             {uploadedFiles.map((fileObj, index) => (
               <div
                 key={index}
                 className={`flex items-center justify-between p-3 rounded-lg border ${
-                  fileObj.uploaded 
+                  fileObj.status === 'uploaded' 
                     ? 'bg-green-50 border-green-200' 
-                    : fileObj.error
+                    : fileObj.status === 'uploading'
+                    ? 'bg-blue-50 border-blue-200'
+                    : fileObj.status === 'failed'
                     ? 'bg-red-50 border-red-200'
                     : 'bg-gray-50 border-gray-200'
                 }`}
               >
                 <div className="flex items-center space-x-3 flex-1">
                   <File className={`h-5 w-5 flex-shrink-0 ${
-                    fileObj.uploaded 
+                    fileObj.status === 'uploaded' 
                       ? 'text-green-500' 
-                      : fileObj.error
+                      : fileObj.status === 'uploading'
+                      ? 'text-blue-500'
+                      : fileObj.status === 'failed'
                       ? 'text-red-500'
                       : 'text-gray-400'
                   }`} />
@@ -347,11 +328,17 @@ const FileUpload = ({ files, onFilesChange, error }) => {
                       <p className="text-xs text-gray-500">
                         {formatFileSize(fileObj.size)}
                       </p>
-                      {fileObj.uploaded && (
-                        <span className="text-xs text-green-600 font-medium">✓ Uploaded</span>
+                      {fileObj.status === 'uploaded' && (
+                        <span className="text-xs text-green-600 font-medium">✓ Uploaded to Drive</span>
                       )}
-                      {fileObj.error && (
-                        <span className="text-xs text-red-600 font-medium">✗ Failed</span>
+                      {fileObj.status === 'uploading' && (
+                        <span className="text-xs text-blue-600 font-medium">↑ Uploading...</span>
+                      )}
+                      {fileObj.status === 'failed' && (
+                        <span className="text-xs text-red-600 font-medium">✗ Upload Failed</span>
+                      )}
+                      {fileObj.status === 'ready' && (
+                        <span className="text-xs text-gray-600 font-medium">⏳ Ready</span>
                       )}
                     </div>
                     {fileObj.error && (
@@ -364,6 +351,7 @@ const FileUpload = ({ files, onFilesChange, error }) => {
                   onClick={() => removeFile(index)}
                   className="ml-3 flex-shrink-0 p-1 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                   aria-label={`Remove ${fileObj.name}`}
+                  disabled={fileObj.status === 'uploading'}
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -513,68 +501,20 @@ export default function CreateTaskPage() {
     setIsSuccess(false)
 
     try {
-      // Process files - upload them if they haven't been uploaded yet
-      let processedFiles = []
+      // Prepare files for upload with task creation
+      let fileData = []
       
       if (formData.files && formData.files.length > 0) {
-        console.log("Processing files for task creation...") // Debug log
+        console.log("Preparing files for task creation with Google Drive upload...") // Debug log
         
-        // Check if your backend supports file upload
-        const hasFileUploadEndpoint = true // Set this based on your backend capabilities
-        
-        if (hasFileUploadEndpoint) {
-          try {
-            // Method 1: Upload files to your server first
-            const filesToUpload = formData.files.filter(fileObj => !fileObj.uploaded && fileObj.file)
-            
-            if (filesToUpload.length > 0) {
-              console.log(`Uploading ${filesToUpload.length} files...`)
-              const uploadResults = await fileUploadService.uploadFiles(
-                filesToUpload.map(fileObj => fileObj.file)
-              )
-              
-              // Combine uploaded URLs with already uploaded files
-              processedFiles = [
-                ...uploadResults.successful.map(result => result.url),
-                ...formData.files.filter(fileObj => fileObj.uploaded).map(fileObj => fileObj.url)
-              ]
-              
-              // Log failed uploads
-              if (uploadResults.failed.length > 0) {
-                console.warn("Some files failed to upload:", uploadResults.failed)
-                // You could show a warning to the user here
-              }
-            } else {
-              // All files already uploaded
-              processedFiles = formData.files.map(fileObj => fileObj.url)
-            }
-          } catch (uploadError) {
-            console.error("File upload failed:", uploadError)
-            throw new Error(`File upload failed: ${uploadError.message}`)
-          }
-        } else {
-          // Method 2: Send files as base64 in the request (for small files only)
-          console.log("Converting files to base64...")
-          processedFiles = await Promise.all(
-            formData.files.map(async (fileObj) => {
-              if (fileObj.uploaded && fileObj.url) {
-                return fileObj.url // Already uploaded
-              }
-              
-              // Convert file to base64 (only for small files < 1MB)
-              if (fileObj.file && fileObj.file.size < 1024 * 1024) {
-                return new Promise((resolve) => {
-                  const reader = new FileReader()
-                  reader.onload = () => resolve(reader.result)
-                  reader.readAsDataURL(fileObj.file)
-                })
-              }
-              
-              // For larger files, just send the filename (backend needs to handle this)
-              return fileObj.name
-            })
-          )
-        }
+        // Since backend handles Google Drive upload during task creation,
+        // we'll send the actual files along with the task data
+        fileData = formData.files.map(fileObj => ({
+          name: fileObj.name,
+          size: fileObj.size,
+          type: fileObj.file?.type || 'application/octet-stream',
+          file: fileObj.file // The actual file object for upload
+        }))
       }
 
       const taskData = {
@@ -588,7 +528,6 @@ export default function CreateTaskPage() {
         status: formData.status,
         startDate: formData.startDate || null,
         endDate: formData.endDate || null,
-        files: processedFiles,
         partnerOrganizations: formData.partnerOrganizations.map((org) => ({
           id: org.value,
           name: org.label,
@@ -599,11 +538,15 @@ export default function CreateTaskPage() {
         })),
       }
 
-      console.log("Sending task data:", taskData) // Debug log
+      console.log("Sending task data with files:", { ...taskData, filesCount: fileData.length }) // Debug log
 
-      const response = await taskService.createTask(taskData)
+      // Create task with files - backend will handle Google Drive upload
+      const response = await taskService.createTaskWithFiles(taskData, fileData)
       
-      if (response && (response.success || response.data)) {
+      console.log("Task creation response:", response) // Debug log
+      
+      // Handle success - response might be empty or have various formats from FormData
+      if (response && response.success !== false && !response.error) {
         setMessage("Task created successfully!")
         setIsSuccess(true)
         // Reset form but keep createdBy info
@@ -611,8 +554,7 @@ export default function CreateTaskPage() {
         setFormData({ ...INITIAL_FORM_DATA, createdBy: currentCreatedBy })
         setErrors({})
       } else {
-        setMessage(response.message || "Failed to create task")
-        setIsSuccess(false)
+        throw new Error(response?.message || "Failed to create task")
       }
     } catch (err) {
       console.error("Error creating task:", err)
@@ -831,16 +773,35 @@ export default function CreateTaskPage() {
                 {loading ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />
-                    Creating Task...
+                    {formData.files.length > 0 
+                      ? `Creating Task & Uploading ${formData.files.length} Files...`
+                      : "Creating Task..."
+                    }
                   </>
                 ) : (
                   <>
                     <Plus size={18} />
-                    Create Task
+                    {formData.files.length > 0 
+                      ? `Create Task (${formData.files.length} files)`
+                      : "Create Task"
+                    }
                   </>
                 )}
               </button>
             </div>
+            
+            {/* File Upload Info */}
+            {formData.files.length > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+                <div className="flex items-center gap-2">
+                  <Upload className="h-4 w-4" />
+                  <span>
+                    {formData.files.length} file(s) will be uploaded to Google Drive when you create this task
+                  </span>
+                </div>
+              </div>
+            )}
+            
             <div id="submit-button-status" className="sr-only">
               {loading ? "Creating task, please wait" : "Ready to create task"}
             </div>
