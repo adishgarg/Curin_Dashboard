@@ -45,33 +45,54 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
     return () => window.removeEventListener("resize", handleResize)
   }, [])
 
-  // Fetch user data
+  // Fetch user data directly from API without caching
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        // First try to get user from localStorage
-        const storedUser = localStorage.getItem("user")
-        if (storedUser) {
-          setUserData(JSON.parse(storedUser))
-          setLoadingUser(false)
-          return
-        }
-
-        // If not in localStorage, fetch from API
+        console.log("Fetching user data from API...")
+        console.log("API endpoint:", "/auth/me")
+        
+        // Check if token exists
+        const token = localStorage.getItem('token')
+        console.log("Token exists:", !!token)
+        
         const response = await userService.getCurrentUser()
-        if (response.data) {
-          setUserData(response.data)
-          localStorage.setItem("user", JSON.stringify(response.data))
+        console.log("API response:", response)
+        
+        if (response && response.status === "success" && response.data && response.data.user) {
+          const user = response.data.user
+          console.log("User data received:", user)
+          
+          // Transform the API response to match our component's expected structure
+          const transformedUserData = {
+            id: user.id,
+            firstName: user.name ? user.name.split(' ')[0] : '',
+            lastName: user.name ? user.name.split(' ').slice(1).join(' ') : '',
+            fullName: user.fullName || user.name,
+            email: user.email,
+            designation: user.designation,
+            avatar: user.avatar || null
+          }
+          
+          console.log("Transformed user data:", transformedUserData)
+          setUserData(transformedUserData)
+        } else {
+          console.log("Unexpected response structure:", response)
+          throw new Error("Invalid response structure from API")
         }
       } catch (error) {
         console.error("Failed to fetch user data:", error)
-        // Fallback to basic user info - using your schema structure
+        console.error("Error details:", error.message)
+        
+        // Fallback to basic user info
+        console.log("Using fallback user data")
         setUserData({
-          firstName: "AKsHaT",
-          lastName: "",
-          email: "admin@taskflow.com",
+          firstName: "Guest",
+          lastName: "User",
+          fullName: "Guest User",
+          email: "guest@example.com",
           avatar: null,
-          designation: "PPI", // Default to PPI for fallback
+          designation: "User",
         })
       } finally {
         setLoadingUser(false)
@@ -81,9 +102,14 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
     fetchUserData()
   }, [])
 
-  // Check if user is PPI (has admin privileges)
+  // Check if user is PPI/LPI (has admin privileges)
   const isPPI = () => {
     return userData?.designation?.toUpperCase() === "PPI" || userData?.designation?.toUpperCase() === "LPI"
+  }
+
+  // Check if user is regular User
+  const isUser = () => {
+    return userData?.designation?.toUpperCase() === "USER"
   }
 
   // Basic menus that everyone can see
@@ -93,13 +119,31 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
     { name: "Settings", icon: Settings, href: "/settings" },
   ]
 
-  // User-specific menus (for regular users)
-  const userSpecificMenus = [
-    { name: "My Tasks", icon: ClipboardList, href: "/my-tasks" },
-    { name: "My Events", icon: Calendar, href: "/my-events" },
-    { name: "Events", icon: Calendar, href: "/events" },
-    { name: "My Progress", icon: UserCheck, href: "/my-progress" },
-  ]
+  // User-specific grouped menus (for regular users)
+  const userGroupedMenus = {
+    tasks: {
+      name: "Tasks",
+      icon: ClipboardList,
+      items: [
+        { name: "My Tasks", icon: ClipboardList, href: "/my-tasks" },
+      ],
+    },
+    events: {
+      name: "Events", 
+      icon: Calendar,
+      items: [
+        { name: "My Events", icon: Calendar, href: "/my-events" },
+        { name: "Events", icon: Calendar, href: "/events" },
+      ],
+    },
+    progress: {
+      name: "Progress",
+      icon: UserCheck,
+      items: [
+        { name: "My Progress", icon: UserCheck, href: "/my-progress" },
+      ],
+    },
+  }
 
   // Admin/PPI menus - all grouped menus
   const adminGroupedMenus = {
@@ -175,6 +219,13 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
   }
 
   const getInitials = (firstName, lastName) => {
+    // If no firstName or lastName, try to extract from fullName
+    if (!firstName && !lastName && userData?.fullName) {
+      const nameParts = userData.fullName.split(' ')
+      firstName = nameParts[0] || ""
+      lastName = nameParts[1] || ""
+    }
+    
     if (!firstName && !lastName) return "U"
     const first = firstName ? firstName[0].toUpperCase() : ""
     const last = lastName ? lastName[0].toUpperCase() : ""
@@ -184,7 +235,11 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
   const getUserDisplayName = () => {
     if (loadingUser) return "Loading..."
     
-    // Handle your schema structure: firstName + lastName
+    // Use fullName first, then fallback to firstName + lastName, then name
+    if (userData?.fullName) {
+      return userData.fullName
+    }
+    
     const firstName = userData?.firstName || ""
     const lastName = userData?.lastName || ""
     
@@ -196,7 +251,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
       return lastName
     }
     
-    // Fallback to other possible name fields
+    // Fallback to name field or default
     return userData?.name || "User"
   }
 
@@ -214,10 +269,10 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
     <>
       {/* Mobile Menu Button */}
       <button
-        className="fixed top-4 right-4 z-50 lg:hidden p-3 rounded-xl mobile-menu-button border border-gray-600 hover:bg-gray-700/50 transition-all duration-200 shadow-lg"
+        className="fixed top-4 right-4 z-50 lg:hidden p-3 rounded-xl bg-gray-900 border border-gray-700 hover:bg-gray-800 transition-all duration-200 shadow-lg"
         onClick={() => setSidebarOpen(!sidebarOpen)}
       >
-        {sidebarOpen ? <X size={22} className="text-gray-100" /> : <Menu size={22} className="text-gray-100" />}
+        {sidebarOpen ? <X size={22} className="text-white" /> : <Menu size={22} className="text-white" />}
       </button>
 
       {/* Mobile Backdrop Overlay */}
@@ -231,7 +286,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
       {/* Sidebar */}
       <div
         className={`
-          fixed inset-y-0 left-0 z-40 w-72 glass-sidebar-dark
+          fixed inset-y-0 left-0 z-40 w-72 bg-gray-900 border-r border-gray-700 shadow-lg
           transform transition-transform duration-300 ease-in-out flex flex-col
           ${sidebarOpen || !isMobile ? "translate-x-0" : "-translate-x-full"}
           lg:translate-x-0
@@ -240,16 +295,16 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
         {/* Content */}
         <div className="relative z-20 flex flex-col h-full">
           {/* Header */}
-          <div className="p-6 border-b border-gray-700/60 flex-shrink-0">
+          <div className="p-6 border-b border-gray-700 flex-shrink-0">
             <h1 className="text-2xl font-bold text-white">Curin</h1>
-            <div className="w-12 h-1 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full mt-2" />
+            <div className="w-12 h-1 bg-white rounded-full mt-2" />
             {/* User role indicator */}
             <div className="mt-3">
               <span
                 className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                   isPPI()
-                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                    : "bg-blue-500/20 text-blue-300 border border-blue-500/30"
+                    ? "bg-gray-800 text-white border border-gray-600"
+                    : "bg-gray-700 text-gray-200 border border-gray-600"
                 }`}
               >
                 {getUserDesignation()}
@@ -258,7 +313,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
           </div>
 
           {/* Navigation - Scrollable Content */}
-          <div className="flex-1 overflow-y-auto scrollbar-hide">
+          <div className="flex-1 overflow-y-auto scrollbar">
             <nav className="p-4 space-y-2">
               {/* Basic Menus - Always visible */}
               {basicMenus.map((menu) => {
@@ -272,24 +327,24 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
                       group relative overflow-hidden
                       ${
                         isActive
-                          ? "bg-blue-600/30 text-blue-300 shadow-md border border-blue-500/40 backdrop-blur-sm"
-                          : "text-gray-300 hover:bg-gray-700/40 hover:text-white border border-transparent hover:border-gray-600/40"
+                          ? "bg-white text-gray-900 shadow-md border border-gray-600"
+                          : "text-gray-300 hover:bg-gray-800 hover:text-white border border-transparent hover:border-gray-600"
                       }
                     `}
                   >
                     <menu.icon
                       size={20}
-                      className={isActive ? "text-blue-400" : "text-gray-400 group-hover:text-gray-200"}
+                      className={isActive ? "text-gray-900" : "text-gray-300 group-hover:text-white"}
                     />
                     <span className="font-medium">{menu.name}</span>
-                    {isActive && <ChevronRight size={16} className="ml-auto text-blue-400" />}
+                    {isActive && <ChevronRight size={16} className="ml-auto text-gray-900" />}
                   </button>
                 )
               })}
 
               {/* Conditional Navigation based on user role */}
               {isPPI() ? (
-                /* PPI/Admin - Show all grouped menus */
+                /* PPI/LPI/Admin - Show all grouped menus */
                 Object.entries(adminGroupedMenus).map(([key, group]) => {
                   const isActiveGroup = group.items.some((item) => location.pathname === item.href)
                   return (
@@ -301,21 +356,21 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
                           group relative overflow-hidden
                           ${
                             isActiveGroup
-                              ? "bg-blue-600/30 text-blue-300 shadow-md border border-blue-500/40 backdrop-blur-sm"
-                              : "text-gray-300 hover:bg-gray-700/40 hover:text-white border border-transparent hover:border-gray-600/40"
+                              ? "bg-white text-gray-900 shadow-md border border-gray-600"
+                              : "text-gray-300 hover:bg-gray-800 hover:text-white border border-transparent hover:border-gray-600"
                           }
                         `}
                       >
                         <group.icon
                           size={20}
-                          className={isActiveGroup ? "text-blue-400" : "text-gray-400 group-hover:text-gray-200"}
+                          className={isActiveGroup ? "text-gray-900" : "text-gray-300 group-hover:text-white"}
                         />
                         <span className="font-medium">{group.name}</span>
                         <ChevronDown
                           size={16}
                           className={`ml-auto transition-transform duration-200 ${
                             openMenus[key] ? "rotate-180" : ""
-                          } ${isActiveGroup ? "text-blue-400" : "text-gray-400"}`}
+                          } ${isActiveGroup ? "text-gray-900" : "text-gray-300"}`}
                         />
                       </button>
 
@@ -336,14 +391,14 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
                                   text-sm
                                   ${
                                     isActive
-                                      ? "bg-blue-500/20 text-blue-300 border-l-2 border-blue-400 backdrop-blur-sm shadow-sm"
-                                      : "text-gray-400 hover:bg-gray-700/30 hover:text-gray-200 border-l-2 border-transparent hover:border-gray-500"
+                                      ? "bg-gray-700 text-white border-l-2 border-white shadow-sm"
+                                      : "text-gray-400 hover:bg-gray-800 hover:text-gray-200 border-l-2 border-transparent hover:border-gray-500"
                                   }
                                 `}
                               >
                                 <submenu.icon
                                   size={16}
-                                  className={isActive ? "text-blue-400" : "text-gray-500 group-hover:text-gray-300"}
+                                  className={isActive ? "text-white" : "text-gray-400 group-hover:text-gray-200"}
                                 />
                                 <span className="font-medium">{submenu.name}</span>
                               </button>
@@ -355,30 +410,69 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
                   )
                 })
               ) : (
-                /* Regular User - Show only specific menus */
-                userSpecificMenus.map((menu) => {
-                  const isActive = location.pathname === menu.href
+                /* Regular User - Show grouped user menus */
+                Object.entries(userGroupedMenus).map(([key, group]) => {
+                  const isActiveGroup = group.items.some((item) => location.pathname === item.href)
                   return (
-                    <button
-                      key={menu.href}
-                      onClick={() => handleNavigation(menu.href)}
-                      className={`
-                        w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
-                        group relative overflow-hidden
-                        ${
-                          isActive
-                            ? "bg-blue-600/30 text-blue-300 shadow-md border border-blue-500/40 backdrop-blur-sm"
-                            : "text-gray-300 hover:bg-gray-700/40 hover:text-white border border-transparent hover:border-gray-600/40"
-                        }
-                      `}
-                    >
-                      <menu.icon
-                        size={20}
-                        className={isActive ? "text-blue-400" : "text-gray-400 group-hover:text-gray-200"}
-                      />
-                      <span className="font-medium">{menu.name}</span>
-                      {isActive && <ChevronRight size={16} className="ml-auto text-blue-400" />}
-                    </button>
+                    <div key={key} className="space-y-1">
+                      <button
+                        onClick={() => toggleMenu(key)}
+                        className={`
+                          w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
+                          group relative overflow-hidden
+                          ${
+                            isActiveGroup
+                              ? "bg-white text-gray-900 shadow-md border border-gray-600"
+                              : "text-gray-300 hover:bg-gray-800 hover:text-white border border-transparent hover:border-gray-600"
+                          }
+                        `}
+                      >
+                        <group.icon
+                          size={20}
+                          className={isActiveGroup ? "text-gray-900" : "text-gray-300 group-hover:text-white"}
+                        />
+                        <span className="font-medium">{group.name}</span>
+                        <ChevronDown
+                          size={16}
+                          className={`ml-auto transition-transform duration-200 ${
+                            openMenus[key] ? "rotate-180" : ""
+                          } ${isActiveGroup ? "text-gray-900" : "text-gray-300"}`}
+                        />
+                      </button>
+
+                      <div
+                        className={`overflow-hidden transition-all duration-300 ${
+                          openMenus[key] ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+                        }`}
+                      >
+                        <div className="ml-4 space-y-1 mt-2">
+                          {group.items.map((submenu) => {
+                            const isActive = location.pathname === submenu.href
+                            return (
+                              <button
+                                key={submenu.href}
+                                onClick={() => handleNavigation(submenu.href)}
+                                className={`
+                                  w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200
+                                  text-sm
+                                  ${
+                                    isActive
+                                      ? "bg-gray-700 text-white border-l-2 border-white shadow-sm"
+                                      : "text-gray-400 hover:bg-gray-800 hover:text-gray-200 border-l-2 border-transparent hover:border-gray-500"
+                                  }
+                                `}
+                              >
+                                <submenu.icon
+                                  size={16}
+                                  className={isActive ? "text-white" : "text-gray-400 group-hover:text-gray-200"}
+                                />
+                                <span className="font-medium">{submenu.name}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </div>
                   )
                 })
               )}
@@ -386,13 +480,13 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
           </div>
 
           {/* User Profile - Fixed at bottom */}
-          <div className="p-4 border-t border-gray-700/60 flex-shrink-0">
+          <div className="p-4 border-t border-gray-700 flex-shrink-0">
             <div className="relative">
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-700/40 transition-all duration-200 cursor-pointer"
+                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-800 transition-all duration-200 cursor-pointer"
               >
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-semibold shadow-md ring-2 ring-emerald-400/30">
+                <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-gray-900 font-semibold shadow-md ring-2 ring-gray-600">
                   {userData?.avatar ? (
                     <img
                       src={userData.avatar}
@@ -405,11 +499,11 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
                 </div>
                 <div className="flex-1 min-w-0 text-left">
                   <p className="font-medium text-white truncate">{getUserDisplayName()}</p>
-                  <p className="text-sm text-gray-400 truncate">{getUserEmail()}</p>
+                  <p className="text-sm text-gray-300 truncate">{getUserEmail()}</p>
                 </div>
                 <ChevronDown
                   size={16}
-                  className={`text-gray-400 transition-transform duration-200 ${
+                  className={`text-gray-300 transition-transform duration-200 ${
                     userMenuOpen ? "rotate-180" : ""
                   }`}
                 />
@@ -421,13 +515,13 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
                   userMenuOpen ? "max-h-32 opacity-100" : "max-h-0 opacity-0"
                 }`}
               >
-                <div className="bg-gray-800/90 backdrop-blur-sm border border-gray-600/40 rounded-xl p-2 space-y-1">
+                <div className="bg-gray-800 border border-gray-600 rounded-xl p-2 space-y-1 shadow-lg">
                   <button
                     onClick={() => {
                       handleNavigation("/profile")
                       setUserMenuOpen(false)
                     }}
-                    className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-300 hover:bg-gray-700/40 hover:text-white rounded-lg transition-all duration-200"
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white rounded-lg transition-all duration-200"
                   >
                     <User size={16} className="text-gray-400" />
                     <span>View Profile</span>
@@ -437,7 +531,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
                       handleLogout()
                       setUserMenuOpen(false)
                     }}
-                    className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-300 hover:bg-red-500/20 hover:text-red-200 rounded-lg transition-all duration-200"
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-400 hover:bg-red-900/30 hover:text-red-300 rounded-lg transition-all duration-200"
                   >
                     <LogOut size={16} className="text-red-400" />
                     <span>Logout</span>
@@ -448,89 +542,6 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
           </div>
         </div>
       </div>
-
-      <style jsx>{`
-        .glass-sidebar-dark {
-          backdrop-filter: blur(20px);
-          -webkit-backdrop-filter: blur(20px);
-          background: rgba(17, 24, 39, 0.85);
-          border-right: 1px solid rgba(75, 85, 99, 0.4);
-          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-        }
-
-        .mobile-menu-button {
-          backdrop-filter: blur(16px);
-          -webkit-backdrop-filter: blur(16px);
-          background: rgba(17, 24, 39, 0.9);
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
-        }
-
-        .mobile-menu-button:hover {
-          background: rgba(17, 24, 39, 0.95);
-          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-          transform: scale(1.05);
-        }
-
-        .mobile-menu-button:active {
-          transform: scale(0.95);
-        }
-
-        .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-
-        /* Custom dark scrollbar */
-        .glass-sidebar-dark .scrollbar-hide::-webkit-scrollbar {
-          width: 8px;
-        }
-
-        .glass-sidebar-dark .scrollbar-hide::-webkit-scrollbar-track {
-          background: rgba(55, 65, 81, 0.3);
-          border-radius: 4px;
-        }
-
-        .glass-sidebar-dark .scrollbar-hide::-webkit-scrollbar-thumb {
-          background: rgba(107, 114, 128, 0.5);
-          border-radius: 4px;
-        }
-
-        .glass-sidebar-dark .scrollbar-hide::-webkit-scrollbar-thumb:hover {
-          background: rgba(107, 114, 128, 0.7);
-        }
-
-        /* Smooth animations */
-        .glass-sidebar-dark button {
-          transform: translateZ(0);
-          will-change: transform, background-color;
-        }
-
-        /* Subtle gradient overlay for depth */
-        .glass-sidebar-dark::before {
-          content: "";
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background: linear-gradient(180deg, rgba(17, 24, 39, 0.1) 0%, rgba(17, 24, 39, 0.05) 100%);
-          z-index: 5;
-          pointer-events: none;
-        }
-
-        /* Glow effect for active items */
-        .glass-sidebar-dark button:hover {
-          box-shadow: 0 0 20px rgba(59, 130, 246, 0.1);
-        }
-
-        /* Active state glow */
-        .glass-sidebar-dark button[class*="bg-blue-600"] {
-          box-shadow: 0 0 25px rgba(59, 130, 246, 0.2);
-        }
-      `}</style>
     </>
   )
 }

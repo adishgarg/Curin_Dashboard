@@ -34,5 +34,19 @@ export const industryService = {
             console.error("Error in industryService.getAllIndustries:", error)
             throw error
         }
+    },
+
+    async createIndustry(industryData) {
+        try {
+            console.log("Creating industry with data:", industryData)
+            const response = await apiClient.post(ENDPOINTS.INDUSTRY_CREATE, industryData)
+            console.log("Create industry response:", response)
+            
+            // The backend returns the saved industry directly
+            return response
+        } catch (error) {
+            console.error("Error in industryService.createIndustry:", error)
+            throw error
+        }
     }
 }

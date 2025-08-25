@@ -2,10 +2,11 @@
 import { useState, useEffect, useCallback } from "react"
 import { Loader2, Plus, Briefcase, AlertCircle, CheckCircle, Edit3, Trash2, Save, X, MapPin, User, Mail, Phone } from "lucide-react"
 import ReusableTable from "../components/ReusableTable"
+import { industryService } from "../services/api/industry"
 
 
-// API constants
-const API_BASE_URL = "https://curin-backend.onrender.com/api"
+
+
 const CACHE_DURATION = 3600 * 1000 // 1 hour
 
 // Cache utilities
@@ -82,14 +83,15 @@ export default function AddIndustriesPage() {
         // Still fetch fresh data in background
       }
 
-      const response = await fetch(`${API_BASE_URL}/industries`)
-      if (!response.ok) throw new Error("Failed to fetch industries")
+      // Use the industry service instead of direct fetch
+      const data = await industryService.getAllIndustries()
+      console.log("Industries data from service:", data)
 
-      const json = await response.json()
-      const data = json?.data?.industries || []
-
-      cacheUtils.set("industries", data)
-      setIndustries(data)
+      // The service already handles different response structures, so data should be an array
+      const industriesArray = Array.isArray(data) ? data : []
+      
+      cacheUtils.set("industries", industriesArray)
+      setIndustries(industriesArray)
     } catch (err) {
       console.error("Error fetching industries:", err)
       setMessage("Failed to load industries")
@@ -167,48 +169,52 @@ export default function AddIndustriesPage() {
 
     setLoading(true)
     try {
-      const response = await fetch(`${API_BASE_URL}/industries/create`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          IndustryName: formData.IndustryName.trim(),
-          Location: formData.Location.trim(),
-          ContactPoint: [{
-            Name: formData.ContactPoint.Name.trim(),
-            Email: formData.ContactPoint.Email.trim(),
-            Phone: formData.ContactPoint.Phone.trim() || undefined
-          }],
-          createdBy: "Admin" // You can change this to current user
-        }),
-      })
-
-      const data = await response.json()
-      
-      if (response.ok) {
-        setMessage("Industry created successfully!")
-        setIsSuccess(true)
-        setFormData({
-          IndustryName: "",
-          Location: "",
-          ContactPoint: {
-            Name: "",
-            Email: "",
-            Phone: ""
-          }
-        })
-        
-        // Refresh industries list
-        await fetchIndustries()
-        
-        // Clear cache to ensure fresh data
-        cacheUtils.remove("industries")
-      } else {
-        setMessage(data.message || "Failed to create industry")
-        setIsSuccess(false)
+      // Prepare industry data for API
+      const industryData = {
+        IndustryName: formData.IndustryName.trim(),
+        Location: formData.Location.trim(),
+        ContactPoint: [{
+          Name: formData.ContactPoint.Name.trim(),
+          Email: formData.ContactPoint.Email.trim(),
+          Phone: formData.ContactPoint.Phone.trim() || undefined
+        }],
+        createdBy: "Admin" // You can change this to current user
       }
+
+      console.log("Submitting industry data:", industryData)
+
+      // Use the industry service instead of direct fetch
+      const response = await industryService.createIndustry(industryData)
+      console.log("Industry created successfully:", response)
+      
+      setMessage("Industry created successfully!")
+      setIsSuccess(true)
+      setFormData({
+        IndustryName: "",
+        Location: "",
+        ContactPoint: {
+          Name: "",
+          Email: "",
+          Phone: ""
+        }
+      })
+      
+      // Refresh industries list
+      await fetchIndustries()
+      
+      // Clear cache to ensure fresh data
+      cacheUtils.remove("industries")
     } catch (error) {
       console.error("Error creating industry:", error)
-      setMessage("Server error, please try again")
+      
+      // Handle different error types from the service
+      if (error.response && error.response.data && error.response.data.message) {
+        setMessage(error.response.data.message)
+      } else if (error.message) {
+        setMessage(error.message)
+      } else {
+        setMessage("Server error, please try again")
+      }
       setIsSuccess(false)
     } finally {
       setLoading(false)

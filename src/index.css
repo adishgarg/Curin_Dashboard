@@ -1,2 +1,37 @@
 @import "tailwindcss";
 
+/* Scrollbar hide utilities */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Custom scrollbar for light theme */
+.scrollbar-hide::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scrollbar-hide::-webkit-scrollbar-track {
+  background: rgba(229, 231, 235, 0.3);
+  border-radius: 4px;
+}
+
+.scrollbar-hide::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.5);
+  border-radius: 4px;
+}
+
+.scrollbar-hide::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.7);
+}
+
+/* Smooth animations */
+button {
+  transform: translateZ(0);
+  will-change: transform, background-color;
+}
+

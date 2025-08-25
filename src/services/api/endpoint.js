@@ -10,14 +10,16 @@ export const ENDPOINTS = {
 
     TASK_ALL: '/tasks/getAll',
     TASK_CREATE: '/tasks/create',
-    TASK_BY_ID: (id) => `/tasks/getOne/${id}`,
+    TASK_BY_ID: (id) => `/tasks/get/${id}`,
     TASK_UPDATE: (id) => `/tasks/update/${id}`,
     TASK_DELETE: (id) => `/tasks/delete/${id}`,
+    TASK_ASSIGNED_TO_ME: '/tasks/assignedToMe',
 
     ORGANIZATION_ALL: '/organizations/getAll',
 
     INDUSTRY_ALL: '/industries/getAll',
+    INDUSTRY_CREATE: '/industries/create',
 
-    USER_PROFILE: "/user/profile",
+    USER_PROFILE: "/auth/me",
     USERS: "/users",
 }

@@ -3,6 +3,40 @@ import { BarChart3, Plus, Users, CheckCircle, AlertCircle, Loader2, TrendingUp, 
 import { Link } from "react-router-dom"
 import { taskService } from "../services/api/task"
 import { employeeService } from "../services/api/employees"
+import { userService } from "../services/api/user"
+
+// Custom hook for user data fetching
+const useUserData = () => {
+  const [userData, setUserData] = useState(null)
+  const [userLoading, setUserLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const response = await userService.getCurrentUser()
+        
+        if (response && response.status === "success" && response.data && response.data.user) {
+          const user = response.data.user
+          setUserData({
+            firstName: user.name ? user.name.split(' ')[0] : 'User',
+            fullName: user.fullName || user.name,
+            email: user.email,
+            designation: user.designation
+          })
+        }
+      } catch (error) {
+        console.error("Failed to fetch user data:", error)
+        setUserData({ firstName: 'User', fullName: 'User' })
+      } finally {
+        setUserLoading(false)
+      }
+    }
+
+    fetchUserData()
+  }, [])
+
+  return { userData, userLoading }
+}
 
 // Custom hook for API data fetching using services
 const useApiData = () => {
@@ -63,6 +97,7 @@ const useApiData = () => {
 
 export default function Home() {
   const { data, loading, error, refetch } = useApiData()
+  const { userData, userLoading } = useUserData()
   const { totalTasks, completedTasks, activeTasks, employees } = data
 
   // Calculate completion rate
@@ -266,7 +301,7 @@ export default function Home() {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-4xl font-bold text-gray-900 mb-2">
-                  Welcome back, AKsHaT
+                  Welcome back, {userLoading ? 'Loading...' : userData?.firstName || 'User'}
                 </h1>
                 <p className="text-gray-600 text-lg">
                   Here's what's happening with your projects today

@@ -12,7 +12,28 @@ export const taskService = {
 
     async getTaskById(id) {
         const response = await apiClient.get(ENDPOINTS.TASK_BY_ID(id));
-        return response.data?.task;
+        console.log("getTaskById response:", response); // Debug log
+        
+        // Handle the response structure: response should have success and data properties
+        if (response.success && response.data) {
+            return response.data;
+        }
+        
+        // Fallback for other possible structures
+        return response.data?.data || response.data || response;
+    },
+
+    async getAssignedToMeTasks() {
+        const response = await apiClient.get(ENDPOINTS.TASK_ASSIGNED_TO_ME);
+        console.log("getAssignedToMeTasks response:", response); // Debug log
+        
+        // Handle the response structure
+        if (response.success && response.data) {
+            return response.data;
+        }
+        
+        // Fallback for other possible structures
+        return response.data || response.tasks || [];
     },
 
     async createTask(taskData) {

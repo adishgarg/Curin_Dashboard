@@ -1,8 +1,9 @@
 "use client"
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react"
+import { useNavigate } from "react-router-dom"
 import {
-  Edit3,
+  Eye,
   X,
   Search,
   Filter,
@@ -198,6 +199,7 @@ const getStatusBadge = (status) => {
 }
 
 export default function Work() {
+  const navigate = useNavigate()
   const [selectedTask, setSelectedTask] = useState(null)
   const [status, setStatus] = useState("")
   const [remarks, setRemarks] = useState("")
@@ -377,28 +379,12 @@ export default function Work() {
       render: (task) => (
         <div>
           <div className="font-medium text-gray-900">{task.taskName || "Unnamed Task"}</div>
-          {task.description && (
-            <div className="text-sm text-gray-500 mt-1 max-w-xs truncate" title={task.description}>
-              {task.description}
-            </div>
-          )}
+          
         </div>
       ),
       className: "min-w-[200px]",
     },
-    {
-      header: "Employees",
-      render: (task) => (
-        <ArrayDisplay
-          items={task.employeesAssigned}
-          taskId={task._id}
-          type="employees"
-          icon={Users}
-          emptyText="No employees"
-        />
-      ),
-      className: "min-w-[150px]",
-    },
+    
     {
       header: "Industries",
       render: (task) => (
@@ -430,55 +416,35 @@ export default function Work() {
       render: (task) => getStatusBadge(task.status),
       className: "min-w-[100px] whitespace-nowrap",
     },
+    
     {
-      header: "Remarks",
+      header: "Dates",
       render: (task) => (
-        <div className="text-sm text-gray-700 max-w-xs">
-          {task.remarks ? (
-            <span className="truncate block" title={task.remarks}>
-              {task.remarks}
-            </span>
-          ) : (
-            <span className="text-gray-400 italic">No remarks</span>
-          )}
+        <div className="flex flex-col gap-1 text-sm">
+          <div className="flex items-center gap-2 text-gray-700">
+            <Calendar size={14} className="text-green-600" aria-hidden="true" />
+            <span className="font-medium">Start:</span>
+            <span>{formatDate(task.startDate)}</span>
+          </div>
+          <div className="flex items-center gap-2 text-gray-700">
+            <Calendar size={14} className="text-red-600" aria-hidden="true" />
+            <span className="font-medium">End:</span>
+            <span>{formatDate(task.endDate)}</span>
+          </div>
         </div>
       ),
-      className: "min-w-[150px]",
-    },
-    {
-      header: "Start Date",
-      render: (task) => (
-        <div className="flex items-center gap-2 text-sm text-gray-700">
-          <Calendar size={14} className="text-green-600" aria-hidden="true" />
-          <span>{formatDate(task.startDate)}</span>
-        </div>
-      ),
-      className: "min-w-[180px]",
-    },
-    {
-      header: "Deadline",
-      render: (task) => (
-        <div className="flex items-center gap-2 text-sm text-gray-700">
-          <Calendar size={14} className="text-red-600" aria-hidden="true" />
-          <span>{formatDate(task.endDate)}</span>
-        </div>
-      ),
-      className: "min-w-[180px]",
+      className: "min-w-[220px]",
     },
     {
       header: "Actions",
       render: (task) => (
         <button
           className="inline-flex items-center gap-2 px-3 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-          onClick={() => {
-            setSelectedTask(task)
-            setStatus(task.status)
-            setRemarks(task.remarks || "")
-          }}
-          aria-label={`Update task: ${task.taskName}`}
+          onClick={() => navigate(`/Task/${task._id}`)}
+          aria-label={`View task: ${task.taskName}`}
         >
-          <Edit3 size={16} />
-          Update
+          <Eye size={16} />
+          View Task
         </button>
       ),
       className: "min-w-[100px] whitespace-nowrap",
