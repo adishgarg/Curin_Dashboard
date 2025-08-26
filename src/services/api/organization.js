@@ -12,5 +12,10 @@ export const organizationService = {
         
         // Fallback for different response structures
         return response.data?.organizations || response.data || []
+    },
+
+    async createOrganization(data) {
+        const response = await apiClient.post(ENDPOINTS.ORGANIZATION_CREATE, data)
+        return response.data
     }
 }

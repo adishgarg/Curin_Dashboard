@@ -19,6 +19,7 @@ import ProtectedRoute from "./components/AuthGuard"
 import RoleBasedRoute from "./components/RoleBasedRoute"
 import ManageEvents from "./Page/ManageEvents"
 import MyTasks from "./Page/MyTasks"
+import OverallProgress from "./Page/OverallProgress"
 
 function AppContent() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -109,6 +110,13 @@ function AppContent() {
             <ProtectedRoute>
               <RoleBasedRoute path="/work-progress">
                 <Work />
+              </RoleBasedRoute>
+            </ProtectedRoute>
+          } />
+          <Route path="/overall-progress" element={
+            <ProtectedRoute>
+              <RoleBasedRoute path="/overall-progress">
+                <OverallProgress />
               </RoleBasedRoute>
             </ProtectedRoute>
           } />
