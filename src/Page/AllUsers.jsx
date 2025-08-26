@@ -577,7 +577,7 @@ export default function AllUsersPage() {
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
-      {/* Header */}
+        <title>Manage Users</title>
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">All Users</h1>

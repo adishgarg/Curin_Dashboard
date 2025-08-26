@@ -511,7 +511,7 @@ export default function AddIndustriesPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 lg:p-6">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
+        <title>Manage Industries</title>
         <div className="bg-black rounded-xl p-6 mb-6 text-white">
           <div className="flex items-center gap-3">
             <Briefcase className="h-8 w-8" aria-hidden="true" />
