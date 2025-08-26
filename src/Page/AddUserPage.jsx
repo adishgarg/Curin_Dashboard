@@ -159,7 +159,7 @@ export default function AddUsersPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100">
-      {/* Subtle Pattern Background */}
+        <title>Manage Users</title>
       <div className="fixed inset-0 z-0">
         <div 
           className="absolute inset-0 opacity-30"

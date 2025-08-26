@@ -597,7 +597,7 @@ export default function CreateTaskPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 lg:p-6">
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
+        <title>Create Tasks</title>
         <div className="bg-black rounded-xl p-6 mb-6 text-white">
           <div className="flex items-center gap-3">
             <Plus className="h-8 w-8" aria-hidden="true" />

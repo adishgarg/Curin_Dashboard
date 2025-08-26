@@ -33,7 +33,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="max-w-md w-full">
-        {/* Header */}
+        <title>Login</title>
         <div className="text-center mb-8">
           <div className="mx-auto w-16 h-16 bg-gray-900 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
             <Shield className="w-8 h-8 text-white" />
