@@ -116,7 +116,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
   const basicMenus = [
     { name: "Home", icon: Home, href: "/" },
     { name: "Profile", icon: User, href: "/profile" },
-    { name: "Settings", icon: Settings, href: "/settings" },
+   
   ]
 
   // User-specific grouped menus (for regular users)
@@ -296,7 +296,7 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
         <div className="relative z-20 flex flex-col h-full">
           {/* Header */}
           <div className="p-6 border-b border-gray-700 flex-shrink-0">
-            <h1 className="text-2xl font-bold text-white">Curin</h1>
+            <h1 className="text-2xl font-bold text-white">{getUserDisplayName()}</h1>
             <div className="w-12 h-1 bg-white rounded-full mt-2" />
             {/* User role indicator */}
             <div className="mt-3">

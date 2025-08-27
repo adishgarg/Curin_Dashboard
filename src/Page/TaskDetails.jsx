@@ -521,11 +521,10 @@ export default function TaskDetails() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
                 >
                   <option value="">Select Status</option>
-                  <option value="pending">Pending</option>
-                  <option value="in-progress">In Progress</option>
+
                   <option value="active">Active</option>
                   <option value="completed">Completed</option>
-                  <option value="on-hold">On Hold</option>
+
                   <option value="cancelled">Cancelled</option>
                 </select>
               </div>

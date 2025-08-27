@@ -22,4 +22,9 @@ export const ENDPOINTS = {
 
     USER_PROFILE: "/auth/me",
     USERS: "/users",
+
+    ORGANIZATION_CREATE: "/organizations/create",
+
+    ORGANIZATION_UPDATE: (id) => `/organizations/update/${id}`,
+    ORGANIZATION_DELETE: (id) => `/organizations/delete/${id}`
 }

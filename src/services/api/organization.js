@@ -17,5 +17,15 @@ export const organizationService = {
     async createOrganization(data) {
         const response = await apiClient.post(ENDPOINTS.ORGANIZATION_CREATE, data)
         return response.data
+    },
+
+    async updateOrganization(id, data) {
+        const response = await apiClient.put(ENDPOINTS.ORGANIZATION_UPDATE(id), data)
+        return response.data
+    },
+
+    async deleteOrganization(id) {
+        const response = await apiClient.delete(ENDPOINTS.ORGANIZATION_DELETE(id))
+        return response.data
     }
 }

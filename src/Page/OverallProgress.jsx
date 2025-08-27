@@ -8,11 +8,6 @@ import { format, addDays, differenceInDays, startOfDay, endOfDay } from "date-fn
 
 // Status configuration
 const STATUS_CONFIG = {
-  pending: {
-    color: "#6b7280",
-    bgColor: "#f3f4f6",
-    text: "Pending",
-  },
   "in-progress": {
     color: "#3b82f6",
     bgColor: "#dbeafe",
@@ -21,7 +16,7 @@ const STATUS_CONFIG = {
   active: {
     color: "#3b82f6",
     bgColor: "#dbeafe",
-    text: "Active",
+    text: "In Progress",
   },
   completed: {
     color: "#10b981",
@@ -270,10 +265,7 @@ const ProfessionalGanttChart = ({ tasks, onTaskClick, onDownload }) => {
           <div className="divide-y divide-gray-200">
             {tasks.map((task, taskIndex) => {
               const taskBar = calculateTaskBar(task, dateRange.start, dateRange.end, dayWidth)
-              const statusConfig = STATUS_CONFIG[task.status] || STATUS_CONFIG.active
-              const progressPercentage = task.status === 'completed' ? 100 : 
-                                       task.status === 'in-progress' || task.status === 'active' ? 65 : 
-                                       task.status === 'cancelled' ? 0 : 25
+              const statusConfig = STATUS_CONFIG[task.status] || STATUS_CONFIG["in-progress"]
               const taskDuration = differenceInDays(new Date(task.endDate), new Date(task.startDate)) + 1
               
               return (
@@ -310,19 +302,11 @@ const ProfessionalGanttChart = ({ tasks, onTaskClick, onDownload }) => {
                                 </div>
                               )}
                               
-                              <div className="flex items-center gap-1 text-orange-600">
-                                <Clock className="h-3 w-3" />
-                                <span className="font-medium">{progressPercentage}% Complete</span>
-                              </div>
-                              
-                              {/* Progress Status Remarks */}
+                              {/* Status Remarks */}
                               {(() => {
                                 const today = new Date()
                                 const taskStart = new Date(task.startDate)
                                 const taskEnd = new Date(task.endDate)
-                                const totalDays = differenceInDays(taskEnd, taskStart) + 1
-                                const daysPassed = Math.max(0, differenceInDays(today, taskStart) + 1)
-                                const expectedProgress = Math.min(100, (daysPassed / totalDays) * 100)
                                 
                                 let remarkColor = 'text-gray-600'
                                 let remarkText = 'On Track'
@@ -336,18 +320,10 @@ const ProfessionalGanttChart = ({ tasks, onTaskClick, onDownload }) => {
                                   remarkColor = 'text-red-600'
                                   remarkText = 'Task Cancelled'
                                   remarkIcon = '❌'
-                                } else if (today > taskEnd && progressPercentage < 100) {
+                                } else if (today > taskEnd) {
                                   remarkColor = 'text-red-600'
                                   remarkText = 'Overdue'
                                   remarkIcon = '⚠️'
-                                } else if (progressPercentage < expectedProgress - 10) {
-                                  remarkColor = 'text-red-600'
-                                  remarkText = 'Behind Schedule'
-                                  remarkIcon = '🔴'
-                                } else if (progressPercentage > expectedProgress + 10) {
-                                  remarkColor = 'text-green-600'
-                                  remarkText = 'Ahead of Schedule'
-                                  remarkIcon = '🟢'
                                 } else if (today >= taskStart && today <= taskEnd) {
                                   remarkColor = 'text-blue-600'
                                   remarkText = 'In Progress'
@@ -446,31 +422,18 @@ const ProfessionalGanttChart = ({ tasks, onTaskClick, onDownload }) => {
                         borderColor: statusConfig.color,
                       }}
                       onClick={() => navigate(`/Task/${task.id}`)}
-                      title={`${task.taskName}\nDuration: ${taskDuration} days\nProgress: ${progressPercentage}%\nClick to view details`}
+                      title={`${task.taskName}\nDuration: ${taskDuration} days\nStatus: ${statusConfig.text}\nClick to view details`}
                     >
-                      {/* Progress Indicator */}
+                      {/* Simple Status-based Bar */}
                       <div className="relative h-full overflow-hidden rounded-md">
-                        {/* Progress Background */}
-                        <div className="h-full bg-gray-200 opacity-30"></div>
+                        {/* Status-based background */}
+                        <div className="h-full w-full" style={{ backgroundColor: statusConfig.color }}></div>
                         
-                        {/* Progress Fill */}
-                        <div
-                          className="absolute top-0 left-0 h-full transition-all duration-500 ease-in-out"
-                          style={{ 
-                            width: `${progressPercentage}%`,
-                            backgroundColor: progressPercentage === 100 ? '#10b981' : 
-                                           progressPercentage >= 75 ? '#3b82f6' :
-                                           progressPercentage >= 50 ? '#f59e0b' :
-                                           progressPercentage >= 25 ? '#f97316' : '#ef4444'
-                          }}
-                        ></div>
-                        
-                        {/* Progress Stripes for Active Tasks */}
+                        {/* Animated stripes for In Progress tasks */}
                         {(task.status === 'in-progress' || task.status === 'active') && (
                           <div 
-                            className="absolute top-0 left-0 h-full opacity-20 animate-pulse"
+                            className="absolute top-0 left-0 h-full w-full opacity-20 animate-pulse"
                             style={{ 
-                              width: `${progressPercentage}%`,
                               background: 'repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.3) 4px, rgba(255,255,255,0.3) 8px)'
                             }}
                           ></div>
@@ -482,49 +445,6 @@ const ProfessionalGanttChart = ({ tasks, onTaskClick, onDownload }) => {
                             {taskBar.width > 60 ? task.taskName : `#${taskIndex + 1}`}
                           </span>
                         </div>
-                        
-                        {/* Progress Percentage Badge */}
-                        {taskBar.width > 40 && (
-                          <div className="absolute top-1 right-1 bg-white bg-opacity-95 text-gray-800 text-xs font-bold px-2 py-1 rounded-full shadow-sm border">
-                            {progressPercentage}%
-                          </div>
-                        )}
-                        
-                        {/* Progress Milestone Markers */}
-                        {[25, 50, 75].map(milestone => (
-                          <div
-                            key={milestone}
-                            className={`absolute top-0 h-full w-0.5 ${
-                              progressPercentage >= milestone ? 'bg-green-400' : 'bg-gray-300'
-                            } opacity-60`}
-                            style={{ left: `${milestone}%` }}
-                            title={`${milestone}% Milestone`}
-                          ></div>
-                        ))}
-                        
-                        {/* Today's Progress Indicator */}
-                        {(() => {
-                          const today = new Date()
-                          const taskStart = new Date(task.startDate)
-                          const taskEnd = new Date(task.endDate)
-                          
-                          if (today >= taskStart && today <= taskEnd) {
-                            const totalDays = differenceInDays(taskEnd, taskStart) + 1
-                            const daysPassed = differenceInDays(today, taskStart) + 1
-                            const expectedProgress = Math.min(100, (daysPassed / totalDays) * 100)
-                            
-                            return (
-                              <div
-                                className="absolute top-0 h-full w-1 bg-yellow-400 opacity-80 shadow-lg"
-                                style={{ left: `${expectedProgress}%` }}
-                                title={`Today's Expected Progress: ${Math.round(expectedProgress)}%`}
-                              >
-                                <div className="absolute -top-2 -left-2 w-5 h-5 bg-yellow-400 rounded-full border-2 border-white shadow-md"></div>
-                              </div>
-                            )
-                          }
-                          return null
-                        })()}
                       </div>
                     </div>
                   </div>
@@ -556,7 +476,7 @@ const ProfessionalGanttChart = ({ tasks, onTaskClick, onDownload }) => {
           
           {/* Timeline Legend */}
           <div>
-            <h4 className="text-sm font-semibold text-gray-800 mb-2">Timeline & Progress Indicators:</h4>
+            <h4 className="text-sm font-semibold text-gray-800 mb-2">Timeline Indicators:</h4>
             <div className="flex flex-wrap items-center gap-6">
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 bg-yellow-100 border-2 border-yellow-400" />
@@ -567,59 +487,35 @@ const ProfessionalGanttChart = ({ tasks, onTaskClick, onDownload }) => {
                 <span className="text-sm text-gray-700">Weekend</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-4 h-2 bg-yellow-400 rounded" />
-                <span className="text-sm text-gray-700">Today's Expected Progress</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-2 bg-green-400 rounded" />
-                <span className="text-sm text-gray-700">Progress Milestones (25%, 50%, 75%)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-2 bg-gradient-to-r from-red-500 to-green-500 rounded" />
-                <span className="text-sm text-gray-700">Progress Bar (Red=Low, Green=Complete)</span>
-              </div>
-              <div className="flex items-center gap-2">
                 <Eye className="h-4 w-4 text-blue-600" />
                 <span className="text-sm text-gray-700">Click to view details</span>
               </div>
             </div>
           </div>
           
-          {/* Progress Remarks Legend */}
+          {/* Status Remarks Legend */}
           <div>
-            <h4 className="text-sm font-semibold text-gray-800 mb-2">Progress Status Remarks:</h4>
+            <h4 className="text-sm font-semibold text-gray-800 mb-2">Status Remarks:</h4>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-xs">
               <div className="flex items-center gap-2">
                 <span>✅</span>
                 <span className="text-green-600 font-semibold">Completed Successfully</span>
               </div>
               <div className="flex items-center gap-2">
-                <span>🟢</span>
-                <span className="text-green-600 font-semibold">Ahead of Schedule</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span>✓</span>
-                <span className="text-gray-600 font-semibold">On Track</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span>🔄</span>
+                <span></span>
                 <span className="text-blue-600 font-semibold">In Progress</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span>🔴</span>
-                <span className="text-red-600 font-semibold">Behind Schedule</span>
               </div>
               <div className="flex items-center gap-2">
                 <span>⚠️</span>
                 <span className="text-red-600 font-semibold">Overdue</span>
               </div>
               <div className="flex items-center gap-2">
-                <span>⏳</span>
-                <span className="text-gray-600 font-semibold">Not Started</span>
-              </div>
-              <div className="flex items-center gap-2">
                 <span>❌</span>
                 <span className="text-red-600 font-semibold">Task Cancelled</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span>⏳</span>
+                <span className="text-gray-600 font-semibold">Not Started</span>
               </div>
             </div>
           </div>
@@ -702,38 +598,60 @@ export default function OverallProgress() {
   }
 
   const handleDownload = async (downloadFormat) => {
-    const chartElement = chartRef.current?.querySelector('[data-gantt-chart]')
-    
-    if (!chartElement) {
-      alert('Chart not found. Please wait for the chart to load completely.')
-      return
-    }
-
     try {
       setDownloading(true)
       
-      // Add a small delay to ensure chart is fully rendered
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // First try to find the chart element
+      const chartElement = chartRef.current?.querySelector('[data-gantt-chart]')
       
-      // Scroll to top of chart to ensure it's in view
-      chartElement.scrollIntoView({ block: 'start' })
-      await new Promise(resolve => setTimeout(resolve, 500))
+      if (!chartElement) {
+        console.error('Chart element not found')
+        alert('Chart not found. Please wait for the chart to load completely.')
+        return
+      }
+
+      console.log('Chart element found:', chartElement)
+      console.log('Chart dimensions:', {
+        width: chartElement.offsetWidth,
+        height: chartElement.offsetHeight,
+        scrollWidth: chartElement.scrollWidth,
+        scrollHeight: chartElement.scrollHeight
+      })
       
+      // Ensure chart is visible and in viewport
+      chartElement.scrollIntoView({ block: 'start', behavior: 'smooth' })
+      
+      // Wait for scroll and any animations to complete
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      
+      // Force a repaint
+      chartElement.style.transform = 'translateZ(0)'
+      await new Promise(resolve => setTimeout(resolve, 100))
+      chartElement.style.transform = ''
+      
+      // Configure html2canvas with more robust settings
       const canvas = await html2canvas(chartElement, {
         backgroundColor: '#ffffff',
-        scale: 2, // Higher resolution
+        scale: 1, // Use scale 1 for better compatibility
         useCORS: true,
-        allowTaint: true,
-        foreignObjectRendering: true,
+        allowTaint: false,
+        foreignObjectRendering: false,
         removeContainer: false,
         scrollX: 0,
         scrollY: 0,
         width: chartElement.scrollWidth,
         height: chartElement.scrollHeight,
-        logging: false, // Disable console logs
-        imageTimeout: 30000, // 30 second timeout
-        onclone: (clonedDoc, element) => {
-          // Ensure all elements are visible in clone
+        logging: true, // Enable logging for debugging
+        imageTimeout: 30000,
+        // Ignore elements that might cause color issues
+        ignoreElements: (element) => {
+          return element.tagName === 'IFRAME' || 
+                 element.classList.contains('animate-pulse') ||
+                 element.style.position === 'fixed' ||
+                 element.getAttribute('data-ignore') === 'true'
+        },
+        onclone: (clonedDoc) => {
+          // Ensure the cloned document has proper styling
           const clonedElement = clonedDoc.querySelector('[data-gantt-chart]')
           if (clonedElement) {
             clonedElement.style.transform = 'none'
@@ -741,29 +659,129 @@ export default function OverallProgress() {
             clonedElement.style.overflow = 'visible'
             clonedElement.style.height = 'auto'
             clonedElement.style.maxHeight = 'none'
+            clonedElement.style.display = 'block'
+            clonedElement.style.visibility = 'visible'
           }
           
-          // Ensure fonts are loaded
+          // Add comprehensive styles to fix color issues and ensure proper rendering
           const style = clonedDoc.createElement('style')
           style.innerHTML = `
-            * { font-family: system-ui, -apple-system, sans-serif !important; }
+            * { 
+              font-family: system-ui, -apple-system, sans-serif !important; 
+              box-sizing: border-box !important;
+            }
+            
+            /* Fix for unsupported color functions - convert to hex/rgb */
+            .bg-blue-50 { background-color: #eff6ff !important; }
+            .bg-blue-100 { background-color: #dbeafe !important; }
+            .bg-blue-500 { background-color: #3b82f6 !important; }
+            .bg-blue-600 { background-color: #2563eb !important; }
+            .bg-indigo-50 { background-color: #eef2ff !important; }
+            .bg-green-50 { background-color: #f0fdf4 !important; }
+            .bg-green-500 { background-color: #22c55e !important; }
+            .bg-green-600 { background-color: #16a34a !important; }
+            .bg-red-50 { background-color: #fef2f2 !important; }
+            .bg-red-500 { background-color: #ef4444 !important; }
+            .bg-red-600 { background-color: #dc2626 !important; }
+            .bg-yellow-50 { background-color: #fefce8 !important; }
+            .bg-yellow-100 { background-color: #fef3c7 !important; }
+            .bg-yellow-400 { background-color: #facc15 !important; }
+            .bg-gray-50 { background-color: #f9fafb !important; }
+            .bg-gray-100 { background-color: #f3f4f6 !important; }
+            .bg-gray-200 { background-color: #e5e7eb !important; }
+            .bg-gray-300 { background-color: #d1d5db !important; }
+            .bg-white { background-color: #ffffff !important; }
+            
+            .text-blue-600 { color: #2563eb !important; }
+            .text-blue-800 { color: #1e40af !important; }
+            .text-green-600 { color: #16a34a !important; }
+            .text-green-700 { color: #15803d !important; }
+            .text-red-600 { color: #dc2626 !important; }
+            .text-red-700 { color: #b91c1c !important; }
+            .text-yellow-600 { color: #ca8a04 !important; }
+            .text-yellow-800 { color: #92400e !important; }
+            .text-purple-600 { color: #9333ea !important; }
+            .text-orange-600 { color: #ea580c !important; }
+            .text-gray-600 { color: #4b5563 !important; }
+            .text-gray-700 { color: #374151 !important; }
+            .text-gray-800 { color: #1f2937 !important; }
+            .text-gray-900 { color: #111827 !important; }
+            .text-white { color: #ffffff !important; }
+            
+            .border-blue-200 { border-color: #bfdbfe !important; }
+            .border-blue-300 { border-color: #93c5fd !important; }
+            .border-blue-400 { border-color: #60a5fa !important; }
+            .border-green-200 { border-color: #bbf7d0 !important; }
+            .border-red-200 { border-color: #fecaca !important; }
+            .border-yellow-400 { border-color: #facc15 !important; }
+            .border-gray-200 { border-color: #e5e7eb !important; }
+            .border-gray-300 { border-color: #d1d5db !important; }
+            .border-white { border-color: #ffffff !important; }
+            
+            /* Remove animations and transforms that can cause issues */
             .animate-pulse { animation: none !important; }
+            .animate-spin { animation: none !important; }
+            .transition-all { transition: none !important; }
+            .transition-colors { transition: none !important; }
+            .hover\\:scale-105 { transform: none !important; }
+            .hover\\:shadow-lg { box-shadow: none !important; }
+            .group-hover\\:z-30 { z-index: auto !important; }
+            
+            /* Ensure chart container has proper background */
+            [data-gantt-chart] { 
+              background: #ffffff !important;
+              min-height: 400px !important;
+              color: #111827 !important;
+            }
+            
+            /* Fix gradient backgrounds */
+            .bg-gradient-to-r {
+              background: #eff6ff !important;
+            }
+            
+            /* Ensure all colors are compatible with html2canvas */
+            * {
+              color: inherit !important;
+              background: inherit !important;
+            }
+            
+            /* Force specific colors for key elements */
+            .text-xs, .text-sm, .text-base {
+              color: #374151 !important;
+            }
+            
+            .font-bold, .font-semibold, .font-medium {
+              color: #111827 !important;
+            }
           `
           clonedDoc.head.appendChild(style)
         }
       })
 
+      console.log('Canvas generated:', {
+        width: canvas.width,
+        height: canvas.height,
+        isEmpty: canvas.width === 0 || canvas.height === 0
+      })
+
       if (!canvas || canvas.width === 0 || canvas.height === 0) {
-        throw new Error('Failed to generate chart image. Canvas is empty.')
+        throw new Error('Failed to generate chart image. Canvas is empty. Chart may not be fully rendered.')
       }
 
       const timestamp = Date.now()
 
       if (downloadFormat === 'png') {
         // Create download link for PNG
+        const dataUrl = canvas.toDataURL('image/png', 1.0)
+        
+        // Check if dataURL is valid (not just a blank image)
+        if (dataUrl === 'data:,' || dataUrl.length < 100) {
+          throw new Error('Generated image appears to be empty')
+        }
+        
         const link = document.createElement('a')
         link.download = `gantt-chart-${timestamp}.png`
-        link.href = canvas.toDataURL('image/png', 1.0)
+        link.href = dataUrl
         link.style.display = 'none'
         document.body.appendChild(link)
         link.click()
@@ -773,6 +791,12 @@ export default function OverallProgress() {
         
       } else if (downloadFormat === 'pdf') {
         const imgData = canvas.toDataURL('image/png', 1.0)
+        
+        // Check if dataURL is valid
+        if (imgData === 'data:,' || imgData.length < 100) {
+          throw new Error('Generated image appears to be empty')
+        }
+        
         const pdf = new jsPDF({
           orientation: 'landscape',
           unit: 'mm',
@@ -823,8 +847,14 @@ export default function OverallProgress() {
       }
       
     } catch (error) {
-      console.error('Download error:', error)
-      alert(`Download failed: ${error.message}. Please ensure the chart is fully loaded and try again.`)
+      console.error('Download error details:', error)
+      alert(`Download failed: ${error.message}. 
+
+Troubleshooting tips:
+1. Make sure the chart is fully loaded and visible
+2. Try scrolling to the chart area first
+3. If using Chrome, check if hardware acceleration is enabled
+4. Try a different browser if the issue persists`)
     } finally {
       setDownloading(false)
     }
@@ -839,10 +869,9 @@ export default function OverallProgress() {
     const total = tasks.length
     const completed = tasks.filter(t => t.status === "completed").length
     const inProgress = tasks.filter(t => t.status === "in-progress" || t.status === "active").length
-    const pending = tasks.filter(t => t.status === "pending").length
     const cancelled = tasks.filter(t => t.status === "cancelled").length
     
-    return { total, completed, inProgress, pending, cancelled }
+    return { total, completed, inProgress, cancelled }
   }, [tasks])
 
   const handleTaskClick = (task) => {
@@ -900,7 +929,7 @@ export default function OverallProgress() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <StatsCard
             icon={Briefcase}
             title="Total Tasks"
@@ -920,13 +949,6 @@ export default function OverallProgress() {
             value={stats.inProgress}
             subtitle={`${stats.total ? Math.round((stats.inProgress / stats.total) * 100) : 0}% active`}
             color="blue"
-          />
-          <StatsCard
-            icon={Clock}
-            title="Pending"
-            value={stats.pending}
-            subtitle={`${stats.total ? Math.round((stats.pending / stats.total) * 100) : 0}% waiting`}
-            color="yellow"
           />
           <StatsCard
             icon={XCircle}
@@ -951,7 +973,6 @@ export default function OverallProgress() {
               className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
               <option value="all">All Tasks ({tasks.length})</option>
-              <option value="pending">Pending ({stats.pending})</option>
               <option value="in-progress">In Progress ({stats.inProgress})</option>
               <option value="completed">Completed ({stats.completed})</option>
               <option value="cancelled">Cancelled ({stats.cancelled})</option>

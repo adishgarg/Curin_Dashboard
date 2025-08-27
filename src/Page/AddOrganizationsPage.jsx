@@ -81,7 +81,10 @@ export default function AddOrganizationsPage() {
         createdBy: "Admin" // You can change this to current user
       })
 
-      if (result && (result.success || result.data)) {
+      console.log("Organization creation result:", result) // Debug log
+
+      // Check for various success indicators
+      if (result && (result.success || result.data || result._id || result.id || result.name)) {
         setMessage("Organization created successfully!")
         setIsSuccess(true)
         setFormData({ name: "" })
@@ -89,7 +92,7 @@ export default function AddOrganizationsPage() {
         // Refresh organizations list
         await fetchOrganizations()
       } else {
-        setMessage(result.message || "Failed to create organization")
+        setMessage(result?.message || "Failed to create organization")
         setIsSuccess(false)
       }
     } catch (error) {

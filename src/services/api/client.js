@@ -29,7 +29,30 @@ class ApiClient {
         try{
             const response = await fetch(url, config)
             if (!response.ok){
-                throw new Error(`HTTP error! status: ${response.status}`)
+                // Try to get error message from response body
+                let errorMessage = `HTTP error! status: ${response.status}`
+                let errorData = null
+                try {
+                    const errorText = await response.text()
+                    if (errorText) {
+                        errorData = JSON.parse(errorText)
+                        if (errorData.error) {
+                            errorMessage = errorData.error
+                        } else if (errorData.message) {
+                            errorMessage = errorData.message
+                        }
+                    }
+                } catch (parseError) {
+                    // If parsing fails, keep the default message
+                }
+                
+                const error = new Error(errorMessage)
+                error.status = response.status
+                error.response = { 
+                    status: response.status,
+                    data: errorData
+                }
+                throw error
             }
 
             // Check if response has content
