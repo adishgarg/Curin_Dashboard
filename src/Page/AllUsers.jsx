@@ -676,12 +676,8 @@ export default function AllUsersPage() {
         )}
       </div>
 
-      {/* Debug Information (remove in production) */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="bg-gray-100 p-3 rounded text-xs">
-          <strong>Debug:</strong> Users loaded: {users.length}, Organizations loaded: {organizations.length}
-        </div>
-      )}
+    
+    
 
       {/* Table Section */}
       {loading ? (

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react"
 import Select from "react-select"
-import { Loader2, CalendarPlus, Calendar, MapPin, Users, DollarSign, Image, User, AlertCircle, CheckCircle, Upload, X, Clock } from "lucide-react"
+import { Loader2, CalendarPlus, Calendar, MapPin, Users, DollarSign, Image, User, AlertCircle, CheckCircle, Upload, X, Clock, IndianRupee } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { eventService } from "../services/api/event"
 import { organizationService } from "../services/api/organization"
@@ -505,7 +505,7 @@ export default function CreateEventPage() {
         </div>
 
         {/* Debug Information - Remove in production */}
-        {process.env.NODE_ENV === 'development' && (
+        {/* {process.env.NODE_ENV === 'development' && (
           <div className="bg-gray-100 p-3 rounded text-xs mb-4">
             <strong>Debug:</strong> 
             Organizations: {orgOptions.length}, 
@@ -522,7 +522,7 @@ export default function CreateEventPage() {
               </div>
             )}
           </div>
-        )}
+        )} */}
 
         {/* Success/Error Message */}
         {message && (
@@ -623,7 +623,7 @@ export default function CreateEventPage() {
                 />
               </FormField>
 
-              <FormField label="Budget" icon={DollarSign} required>
+              <FormField label="Budget" icon={IndianRupee} required>
                 <input
                   type="number"
                   placeholder="Enter budget amount"

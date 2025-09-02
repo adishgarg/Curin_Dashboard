@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { Eye, Calendar, User, Building2, DollarSign, Users, Plus } from "lucide-react"
+import { Eye, Calendar, User, Building2, IndianRupee, Users, Plus } from "lucide-react"
 import ReusableTable from "../components/ReusableTable"
 import { eventService } from "../services/api/event"
 
@@ -139,7 +139,7 @@ export default function ManageEvents() {
       key: "budget",
       render: (event) => (
         <div className="flex items-center gap-2">
-          <DollarSign className="h-4 w-4 text-gray-400" />
+          <IndianRupee className="h-4 w-4 text-gray-400" />
           <span className="text-sm text-gray-900">
             {formatCurrency(event.budget)}
           </span>

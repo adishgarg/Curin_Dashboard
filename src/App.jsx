@@ -21,6 +21,7 @@ import RoleBasedRoute from "./components/RoleBasedRoute"
 import MyTasks from "./Page/MyTasks"
 import OverallProgress from "./Page/OverallProgress"
 import ManageEvents from "./Page/ManageEvents"
+import AllEvents from "./Page/AllEvents"
 function AppContent() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const location = useLocation()
@@ -93,7 +94,7 @@ function AppContent() {
           <Route path="/events" element={
             <ProtectedRoute>
               <RoleBasedRoute path="/events">
-               <ManageEvents />
+               <AllEvents />
               </RoleBasedRoute>
             </ProtectedRoute>
           } />

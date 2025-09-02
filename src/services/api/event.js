@@ -94,5 +94,55 @@ export const eventService = {
             console.warn("Unexpected response structure for getEventById:", response);
             throw new Error("Event not found");
         }
-    }
+    },
+
+    async updateEvent(id, updateData) {
+        try {
+            const response = await apiClient.put(ENDPOINTS.EVENT_UPDATE(id), updateData);
+            console.log("Raw API response for updateEvent:", response);
+            
+            if (response.success) {
+                return response.data;
+            } else {
+                throw new Error(response.message || 'Failed to update event');
+            }
+        } catch (error) {
+            console.error('Error updating event:', error);
+            throw error.response?.data || error;
+        }
+    },
+
+    async deleteEvent(id) {
+        try {
+            const response = await apiClient.delete(ENDPOINTS.EVENT_DELETE(id));
+            console.log("Raw API response for deleteEvent:", response);
+            
+            // Handle both success and error responses
+            if (response.success === true) {
+                return response;
+            } else if (response.success === false) {
+                // Backend returned an error response
+                throw new Error(response.message || response.error || 'Failed to delete event');
+            } else {
+                // Assume success if no explicit success field (some APIs don't return success field)
+                return response;
+            }
+        } catch (error) {
+            console.error('Error deleting event:', error);
+            
+            // If it's an API response error, extract the message
+            if (error.response?.data) {
+                throw new Error(error.response.data.message || error.response.data.error || 'Failed to delete event');
+            }
+            
+            // If it's already an Error object, re-throw it
+            if (error instanceof Error) {
+                throw error;
+            }
+            
+            // Default error
+            throw new Error('Failed to delete event');
+        }
+    },
+
 }
