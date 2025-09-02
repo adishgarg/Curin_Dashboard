@@ -14,13 +14,13 @@ import AddOrganizationsPage from "./Page/AddOrganizationsPage"
 import AddIndustriesPage from "./Page/AddIndustriesPage"
 import AllUsers from "./Page/AllUsers"
 import CreateEventPage from "./Page/CreateEvent"
+import EventDetails from "./Page/EventDetails"
 import NoAccessPage from "./Page/NoAccessPage"
 import ProtectedRoute from "./components/AuthGuard"
 import RoleBasedRoute from "./components/RoleBasedRoute"
-import ManageEvents from "./Page/ManageEvents"
 import MyTasks from "./Page/MyTasks"
 import OverallProgress from "./Page/OverallProgress"
-
+import ManageEvents from "./Page/ManageEvents"
 function AppContent() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const location = useLocation()
@@ -93,7 +93,7 @@ function AppContent() {
           <Route path="/events" element={
             <ProtectedRoute>
               <RoleBasedRoute path="/events">
-                <div>Events Page (Coming Soon)</div>
+               <ManageEvents />
               </RoleBasedRoute>
             </ProtectedRoute>
           } />
@@ -173,6 +173,13 @@ function AppContent() {
             <ProtectedRoute>
               <RoleBasedRoute path="/manage-events">
                 <ManageEvents />
+              </RoleBasedRoute>
+            </ProtectedRoute>
+          } />
+          <Route path="/event/:id" element={
+            <ProtectedRoute>
+              <RoleBasedRoute path="/event/:id">
+                <EventDetails />
               </RoleBasedRoute>
             </ProtectedRoute>
           } />

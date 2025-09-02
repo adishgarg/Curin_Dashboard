@@ -30,20 +30,27 @@ export default function MyTasks() {
 
   // Status configuration for styling
   const STATUS_CONFIG = {
-    active: {
-      color: "bg-gray-50 text-gray-700 border-gray-200",
-      text: "Pending",
-    },
-
-    completed: {
-      color: "bg-green-50 text-green-700 border-green-200",
-      text: "Completed",
-    },
-    cancelled: {
-      color: "bg-red-50 text-red-700 border-red-200",
-      text: "Cancelled",
-    },
-  }
+  pending: {
+    color: "bg-yellow-50 text-yellow-700 border-yellow-200",
+    text: "Pending",
+  },
+  "in-progress": {
+    color: "bg-blue-50 text-blue-700 border-blue-200",
+    text: "In Progress",
+  },
+  active: {
+    color: "bg-gray-50 text-gray-700 border-gray-200",
+    text: "Active",
+  },
+  completed: {
+    color: "bg-green-50 text-green-700 border-green-200",
+    text: "Completed",
+  },
+  cancelled: {
+    color: "bg-red-50 text-red-700 border-red-200",
+    text: "Cancelled",
+  },
+}
 
   const getStatusConfig = (status) => {
     return STATUS_CONFIG[status] || STATUS_CONFIG.pending

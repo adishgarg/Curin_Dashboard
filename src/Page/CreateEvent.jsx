@@ -2,7 +2,9 @@ import { useState, useEffect, useCallback } from "react"
 import Select from "react-select"
 import { Loader2, CalendarPlus, Calendar, MapPin, Users, DollarSign, Image, User, AlertCircle, CheckCircle, Upload, X, Clock } from "lucide-react"
 import { useNavigate } from "react-router-dom"
-import { apiClient } from "../services/api/client"
+import { eventService } from "../services/api/event"
+import { organizationService } from "../services/api/organization"
+import { employeeService } from "../services/api/employees"
 
 const CACHE_DURATION = 3600 * 1000 // 1 hour
 
@@ -250,35 +252,59 @@ export default function CreateEventPage() {
 
   const navigate = useNavigate()
 
-  // Fetch organizations with caching
+  // Fetch organizations with caching (matching CreateTaskPage pattern)
   const fetchOrganizations = useCallback(async () => {
     setLoadingOrgs(true)
     try {
       let cached = cacheUtils.get("organizations")
       if (cached) {
+        console.log("Using cached organizations:", cached)
         setOrgOptions(cached.map((org) => ({ value: org._id, label: org.name })))
         setLoadingOrgs(false)
         return
       }
 
-      const response = await apiClient.get("/org")
-      const data = response?.data?.organizations || []
+      console.log("Fetching organizations from API...")
+      const organizations = await organizationService.getAllOrganizations()
+      console.log("Full organizations response:", organizations)
+      
+      // Process organizations (matching CreateTaskPage pattern)
+      let organizationData = []
+      if (organizations && organizations.success && Array.isArray(organizations.data)) {
+        organizationData = organizations.data
+      } else if (Array.isArray(organizations)) {
+        organizationData = organizations
+      }
+      
+      console.log("Processed organizations data:", organizationData)
 
-      cacheUtils.set("organizations", data)
-      setOrgOptions(data.map((org) => ({ value: org._id, label: org.name })))
+      if (organizationData && organizationData.length > 0) {
+        cacheUtils.set("organizations", organizationData)
+        const options = organizationData.map((org) => ({ 
+          value: org._id || org.id, 
+          label: org.name || org.organizationName || 'Unknown Org'
+        }))
+        console.log("Mapped organization options:", options)
+        setOrgOptions(options)
+      } else {
+        console.warn("No organizations found in response")
+        setOrgOptions([])
+      }
     } catch (err) {
       console.error("Error fetching organizations:", err)
+      setOrgOptions([])
     } finally {
       setLoadingOrgs(false)
     }
   }, [])
 
-  // Fetch conveners (Head of Departments)
+  // Fetch conveners (Head of Departments) - using employeeService like CreateTaskPage
   const fetchConveners = useCallback(async () => {
     setLoadingConveners(true)
     try {
       let cached = cacheUtils.get("conveners")
       if (cached) {
+        console.log("Using cached conveners:", cached)
         setConvenerOptions(cached.map((user) => ({ 
           value: user._id, 
           label: `${user.firstName} ${user.lastName} - ${user.designation}` 
@@ -287,11 +313,22 @@ export default function CreateEventPage() {
         return
       }
 
-      const response = await apiClient.get("/employees")
-      const employees = response?.data?.employees || []
+      console.log("Fetching employees from API...")
+      const employees = await employeeService.getAllEmployees()
+      console.log("Full employees response:", employees)
+      
+      // Process employees (matching CreateTaskPage pattern)
+      let employeeData = []
+      if (Array.isArray(employees)) {
+        employeeData = employees
+      } else if (employees && employees.success && Array.isArray(employees.data)) {
+        employeeData = employees.data
+      }
+      
+      console.log("Processed employees data:", employeeData)
       
       // Filter for Head of Departments or similar roles
-      const conveners = employees.filter(emp => 
+      const conveners = employeeData.filter(emp => 
         emp.designation && (
           emp.designation.toLowerCase().includes('head') ||
           emp.designation.toLowerCase().includes('hod') ||
@@ -300,25 +337,46 @@ export default function CreateEventPage() {
         )
       )
 
-      cacheUtils.set("conveners", conveners)
-      setConvenerOptions(conveners.map((user) => ({ 
-        value: user._id, 
-        label: `${user.firstName} ${user.lastName} - ${user.designation}` 
-      })))
+      console.log("All employees fetched:", employeeData.length)
+      console.log("Sample employee:", employeeData[0])
+      console.log("Filtered conveners:", conveners.length, conveners)
+
+      if (conveners.length > 0) {
+        cacheUtils.set("conveners", conveners)
+        const options = conveners.map((user) => ({ 
+          value: user._id, 
+          label: `${user.firstName} ${user.lastName} - ${user.designation}` 
+        }))
+        console.log("Mapped convener options:", options)
+        setConvenerOptions(options)
+      } else {
+        console.warn("No conveners found after filtering")
+        // Fallback: use all employees as conveners for testing
+        const allOptions = employeeData.map((user) => ({ 
+          value: user._id, 
+          label: `${user.firstName} ${user.lastName} - ${user.designation || 'No designation'}` 
+        }))
+        console.log("Using all employees as convener options:", allOptions.length)
+        setConvenerOptions(allOptions)
+      }
     } catch (err) {
       console.error("Error fetching conveners:", err)
+      setConvenerOptions([])
     } finally {
       setLoadingConveners(false)
     }
   }, [])
 
-  // Fetch booked dates for calendar
+  // Fetch booked dates for calendar (using eventService)
   const fetchBookedDates = useCallback(async () => {
     try {
-      const response = await apiClient.get("/events/booked-dates")
-      setBookedDates(response?.data?.bookedDates || [])
+      console.log("Fetching booked dates...")
+      const bookedDatesData = await eventService.getBookedDates()
+      console.log("Processed booked dates:", bookedDatesData)
+      setBookedDates(bookedDatesData)
     } catch (err) {
       console.error("Error fetching booked dates:", err)
+      setBookedDates([]) // Set empty array on error
     }
   }, [])
 
@@ -330,6 +388,11 @@ export default function CreateEventPage() {
 
   // Handle form data updates
   const updateFormData = (field, value) => {
+    console.log(`Updating ${field}:`, value);
+    if (field === 'conveners') {
+      console.log('Selected conveners:', value);
+      console.log('Conveners count:', value?.length || 0);
+    }
     setFormData({ ...formData, [field]: value })
   }
 
@@ -352,7 +415,7 @@ export default function CreateEventPage() {
     setPosterPreview(null)
   }
 
-  // Handle form submission
+  // Handle form submission (using eventService)
   const handleSubmit = async (e) => {
     e.preventDefault()
 
@@ -362,36 +425,65 @@ export default function CreateEventPage() {
     }
 
     setLoading(true)
+    setMessage("")
+    setIsSuccess(false)
+
     try {
-      const submitData = new FormData()
+      console.log("Form data before processing:", formData);
+      console.log("Form data conveners:", formData.conveners);
+      console.log("Is conveners array?", Array.isArray(formData.conveners));
       
-      submitData.append("eventName", formData.eventName)
-      submitData.append("proposedDateFrom", formData.proposedDateFrom)
-      submitData.append("proposedDateTo", formData.proposedDateTo)
-      submitData.append("fromTime", formData.fromTime)
-      submitData.append("toTime", formData.toTime)
-      submitData.append("organizedBy", formData.organizedBy?.value || "")
-      submitData.append("venue", formData.venue)
-      submitData.append("budget", formData.budget)
-      submitData.append("conveners", JSON.stringify(formData.conveners.map(c => c.value)))
-      
-      if (formData.poster) {
-        submitData.append("poster", formData.poster)
+      // Prepare event data object
+      const eventData = {
+        eventName: formData.eventName,
+        proposedDateFrom: formData.proposedDateFrom,
+        proposedDateTo: formData.proposedDateTo,
+        fromTime: formData.fromTime,
+        toTime: formData.toTime,
+        organizedBy: formData.organizedBy?.value || "",
+        venue: formData.venue,
+        budget: formData.budget,
+        conveners: formData.conveners.map(c => c.value)
       }
 
-      const response = await apiClient.post("/events", submitData, {
-        headers: { "Content-Type": "multipart/form-data" }
-      })
+      console.log("Submitting event data:", eventData)
+      console.log("Event data conveners:", eventData.conveners)
+      if (formData.poster) {
+        console.log("Poster file:", formData.poster.name, formData.poster.size)
+      }
+
+      // Use eventService to create event
+      const response = await eventService.createEvent(eventData, formData.poster)
 
       console.log("Created Event:", response)
 
-      setMessage("Event created successfully!")
-      setIsSuccess(true)
+      // Handle success - response might be empty or have various formats from FormData
+      if (response && response.success !== false && !response.error) {
+        setMessage("Event created successfully!")
+        setIsSuccess(true)
+        
+        // Reset form
+        setFormData({
+          eventName: "",
+          proposedDateFrom: "",
+          proposedDateTo: "",
+          fromTime: "09:00",
+          toTime: "17:00",
+          organizedBy: null,
+          venue: "",
+          poster: null,
+          budget: "",
+          conveners: []
+        })
+        setPosterPreview(null)
 
-      setTimeout(() => navigate("/events"), 1000)
+        setTimeout(() => navigate("/events"), 1000)
+      } else {
+        throw new Error(response?.message || "Failed to create event")
+      }
     } catch (error) {
       console.error("Error creating event:", error)
-      setMessage("Failed to create event")
+      setMessage(error.message || "Failed to create event")
       setIsSuccess(false)
     } finally {
       setLoading(false)
@@ -411,6 +503,26 @@ export default function CreateEventPage() {
             </div>
           </div>
         </div>
+
+        {/* Debug Information - Remove in production */}
+        {process.env.NODE_ENV === 'development' && (
+          <div className="bg-gray-100 p-3 rounded text-xs mb-4">
+            <strong>Debug:</strong> 
+            Organizations: {orgOptions.length}, 
+            Conveners: {convenerOptions.length}, 
+            Booked Dates: {bookedDates.length}
+            {orgOptions.length > 0 && (
+              <div className="mt-1">
+                First organization: {JSON.stringify(orgOptions[0])}
+              </div>
+            )}
+            {convenerOptions.length > 0 && (
+              <div className="mt-1">
+                First convener: {JSON.stringify(convenerOptions[0])}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Success/Error Message */}
         {message && (

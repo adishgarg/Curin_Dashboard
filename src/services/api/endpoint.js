@@ -26,5 +26,12 @@ export const ENDPOINTS = {
     ORGANIZATION_CREATE: "/organizations/create",
 
     ORGANIZATION_UPDATE: (id) => `/organizations/update/${id}`,
-    ORGANIZATION_DELETE: (id) => `/organizations/delete/${id}`
+    ORGANIZATION_DELETE: (id) => `/organizations/delete/${id}`,
+
+    EVENT_CREATE: '/events/create',
+    EVENT_ALL: '/events/getAll',
+    EVENT_BY_ID: (id) => `/events/getOne/${id}`,
+    EVENT_UPDATE: (id) => `/events/update/${id}`,
+    EVENT_DELETE: (id) => `/events/delete/${id}`,
+    EVENT_BOOKED_DATES: '/events/booked-dates',
 }
