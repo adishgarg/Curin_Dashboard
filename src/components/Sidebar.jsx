@@ -10,6 +10,7 @@ import {
   Plus,
   ChevronRight,
   ChevronDown,
+  ChevronLeft,
   Edit3,
   ClipboardList,
   Calendar,
@@ -20,7 +21,7 @@ import {
 import { userService } from "../services/api/user"
 import { logoutService } from "../services/api/logout"
 
-export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
+export default function Sidebar({ sidebarOpen, setSidebarOpen, sidebarCollapsed, setSidebarCollapsed, hideSidebar = false }) {
   const [isMobile, setIsMobile] = useState(false)
   const [openMenus, setOpenMenus] = useState({
     workProgress: false,
@@ -39,11 +40,22 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
     const handleResize = () => {
       const mobile = window.innerWidth < 1024
       setIsMobile(mobile)
+      // Reset collapsed state on mobile
+      if (mobile) {
+        setSidebarCollapsed(false)
+      }
     }
     handleResize()
     window.addEventListener("resize", handleResize)
     return () => window.removeEventListener("resize", handleResize)
-  }, [])
+  }, [setSidebarCollapsed])
+
+  // Reset user menu when sidebar is collapsed
+  useEffect(() => {
+    if (sidebarCollapsed) {
+      setUserMenuOpen(false)
+    }
+  }, [sidebarCollapsed])
 
   // Fetch user data directly from API without caching
   useEffect(() => {
@@ -267,13 +279,16 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
 
   return (
     <>
-      {/* Mobile Menu Button */}
-      <button
-        className="fixed top-4 right-4 z-50 lg:hidden p-3 rounded-xl bg-gray-900 border border-gray-700 hover:bg-gray-800 transition-all duration-200 shadow-lg"
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-      >
-        {sidebarOpen ? <X size={22} className="text-white" /> : <Menu size={22} className="text-white" />}
-      </button>
+      {/* Sidebar Toggle Button - Only when sidebar is closed */}
+      {!hideSidebar && !sidebarOpen && (
+        <button
+          className="fixed top-6 left-6 z-50 p-2.5 rounded-lg bg-white border border-gray-300 hover:bg-gray-50 hover:shadow-lg transition-all duration-300 shadow-md group"
+          onClick={() => setSidebarOpen(true)}
+          aria-label="Show sidebar"
+        >
+          <Menu size={18} className="text-gray-700 group-hover:text-gray-900" />
+        </button>
+      )}
 
       {/* Mobile Backdrop Overlay */}
       {sidebarOpen && isMobile && (
@@ -286,59 +301,129 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
       {/* Sidebar */}
       <div
         className={`
-          fixed inset-y-0 left-0 z-40 w-72 bg-gray-900 border-r border-gray-700 shadow-lg
-          transform transition-transform duration-300 ease-in-out flex flex-col
-          ${sidebarOpen || !isMobile ? "translate-x-0" : "-translate-x-full"}
-          lg:translate-x-0
+          fixed inset-y-0 left-0 z-40 bg-gray-900 border-r border-gray-700 shadow-lg
+          transform transition-all duration-300 ease-in-out flex flex-col
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+          ${sidebarOpen && sidebarCollapsed && !isMobile ? "w-20" : "w-72"}
         `}
+        style={{
+          ...(sidebarCollapsed && !isMobile ? { overflow: "hidden" } : {}),
+          minWidth: sidebarOpen && sidebarCollapsed && !isMobile ? "80px" : "288px"
+        }}
       >
         {/* Content */}
-        <div className="relative z-20 flex flex-col h-full">
+        <div className={`relative z-20 flex flex-col h-full ${sidebarCollapsed && !isMobile ? "overflow-hidden" : ""}`}>
           {/* Header */}
-          <div className="p-6 border-b border-gray-700 flex-shrink-0">
-            <h1 className="text-2xl font-bold text-white">{getUserDisplayName()}</h1>
-            <div className="w-12 h-1 bg-white rounded-full mt-2" />
-            {/* User role indicator */}
-            <div className="mt-3">
-              <span
-                className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                  isPPI()
-                    ? "bg-gray-800 text-white border border-gray-600"
-                    : "bg-gray-700 text-gray-200 border border-gray-600"
-                }`}
-              >
-                {getUserDesignation()}
-              </span>
-            </div>
+          <div className={`border-b border-gray-700 flex-shrink-0 transition-all duration-300 ${sidebarCollapsed && !isMobile ? "p-3" : "p-6"}`}>
+            {sidebarCollapsed && !isMobile ? (
+              /* Collapsed state - Only button centered */
+              <div className="flex justify-center">
+                <button
+                  onClick={() => setSidebarCollapsed(false)}
+                  className="p-2 rounded-lg hover:bg-gray-800 transition-all duration-300"
+                  aria-label="Expand sidebar"
+                >
+                  <ChevronRight size={20} className="text-gray-400 hover:text-white transition-all duration-300" />
+                </button>
+              </div>
+            ) : (
+              /* Expanded state - Full header with text and button */
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <h1 className="text-2xl font-bold text-white whitespace-nowrap overflow-hidden">
+                    {getUserDisplayName()}
+                  </h1>
+                  <div className="w-12 h-1 bg-white rounded-full mt-2" />
+                  {/* User role indicator */}
+                  <div className="mt-3">
+                    <span
+                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                        isPPI()
+                          ? "bg-gray-800 text-white border border-gray-600"
+                          : "bg-gray-700 text-gray-200 border border-gray-600"
+                      }`}
+                    >
+                      {getUserDesignation()}
+                    </span>
+                  </div>
+                </div>
+                {/* Collapse button - Only on desktop */}
+                {!isMobile && (
+                  <button
+                    onClick={() => setSidebarCollapsed(true)}
+                    className="p-2 rounded-lg hover:bg-gray-800 transition-all duration-300 flex-shrink-0"
+                    aria-label="Collapse sidebar"
+                  >
+                    <ChevronLeft size={20} className="text-gray-400 hover:text-white transition-all duration-300" />
+                  </button>
+                )}
+                {/* Mobile close button */}
+                {isMobile && (
+                  <button
+                    onClick={() => setSidebarOpen(false)}
+                    className="p-2 rounded-lg hover:bg-gray-800 transition-colors duration-200 flex-shrink-0"
+                    aria-label="Close sidebar"
+                  >
+                    <X size={20} className="text-gray-400 hover:text-white" />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Navigation - Scrollable Content */}
-          <div className="flex-1 overflow-y-auto scrollbar">
-            <nav className="p-4 space-y-2">
+          <div 
+            className={`flex-1 ${sidebarCollapsed && !isMobile ? "overflow-hidden" : "overflow-y-auto scrollbar"}`}
+            style={sidebarCollapsed && !isMobile ? {
+              scrollbarWidth: "none",
+              msOverflowStyle: "none"
+            } : {}}
+          >
+            <div 
+              className={sidebarCollapsed && !isMobile ? "no-scrollbar" : ""}
+              style={sidebarCollapsed && !isMobile ? {
+                WebkitScrollbar: { display: "none" }
+              } : {}}
+            >
+              <nav className={`space-y-2 ${sidebarCollapsed && !isMobile ? "p-2" : "p-4"}`}>
               {/* Basic Menus - Always visible */}
               {basicMenus.map((menu) => {
                 const isActive = location.pathname === menu.href
                 return (
-                  <button
-                    key={menu.href}
-                    onClick={() => handleNavigation(menu.href)}
-                    className={`
-                      w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
-                      group relative overflow-hidden
-                      ${
-                        isActive
-                          ? "bg-white text-gray-900 shadow-md border border-gray-600"
-                          : "text-gray-300 hover:bg-gray-800 hover:text-white border border-transparent hover:border-gray-600"
-                      }
-                    `}
-                  >
-                    <menu.icon
-                      size={20}
-                      className={isActive ? "text-gray-900" : "text-gray-300 group-hover:text-white"}
-                    />
-                    <span className="font-medium">{menu.name}</span>
-                    {isActive && <ChevronRight size={16} className="ml-auto text-gray-900" />}
-                  </button>
+                  <div key={menu.href} className="relative group">
+                    <button
+                      onClick={() => handleNavigation(menu.href)}
+                      className={`
+                        w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200
+                        group relative overflow-hidden
+                        ${
+                          isActive
+                            ? "bg-white text-gray-900 shadow-md border border-gray-600"
+                            : "text-gray-300 hover:bg-gray-800 hover:text-white border border-transparent hover:border-gray-600"
+                        }
+                        ${sidebarCollapsed && !isMobile ? "justify-center" : ""}
+                      `}
+                    >
+                      <menu.icon
+                        size={20}
+                        className={isActive ? "text-gray-900" : "text-gray-300 group-hover:text-white"}
+                      />
+                      {!sidebarCollapsed && (
+                        <>
+                          <span className="font-medium whitespace-nowrap transition-all duration-300" style={{
+                            transitionDelay: "150ms"
+                          }}>{menu.name}</span>
+                          {isActive && <ChevronRight size={16} className="ml-auto text-gray-900" />}
+                        </>
+                      )}
+                    </button>
+                    {/* Tooltip for collapsed state - only on desktop */}
+                    {sidebarCollapsed && !isMobile && (
+                      <div className="absolute left-full top-1/2 transform -translate-y-1/2 ml-2 px-2 py-1 bg-gray-800 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                        {menu.name}
+                      </div>
+                    )}
+                  </div>
                 )
               })}
 
@@ -347,6 +432,41 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
                 /* PPI/LPI/Admin - Show all grouped menus */
                 Object.entries(adminGroupedMenus).map(([key, group]) => {
                   const isActiveGroup = group.items.some((item) => location.pathname === item.href)
+                  
+                  if (sidebarCollapsed && !isMobile) {
+                    // In collapsed mode on desktop, show only the group icon with tooltip
+                    return (
+                      <div key={key} className="relative group">
+                        <button
+                          onClick={() => {
+                            // If collapsed, expand sidebar when clicking on groups
+                            setSidebarCollapsed(false)
+                            toggleMenu(key)
+                          }}
+                          className={`
+                            w-full flex items-center justify-center px-4 py-3 rounded-xl transition-all duration-200
+                            group relative overflow-hidden
+                            ${
+                              isActiveGroup
+                                ? "bg-white text-gray-900 shadow-md border border-gray-600"
+                                : "text-gray-300 hover:bg-gray-800 hover:text-white border border-transparent hover:border-gray-600"
+                            }
+                          `}
+                        >
+                          <group.icon
+                            size={20}
+                            className={isActiveGroup ? "text-gray-900" : "text-gray-300 group-hover:text-white"}
+                          />
+                        </button>
+                        {/* Tooltip for collapsed state */}
+                        <div className="absolute left-full top-1/2 transform -translate-y-1/2 ml-2 px-2 py-1 bg-gray-800 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                          {group.name}
+                        </div>
+                      </div>
+                    )
+                  }
+                  
+                  // Expanded mode - normal functionality
                   return (
                     <div key={key} className="space-y-1">
                       <button
@@ -413,6 +533,41 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
                 /* Regular User - Show grouped user menus */
                 Object.entries(userGroupedMenus).map(([key, group]) => {
                   const isActiveGroup = group.items.some((item) => location.pathname === item.href)
+                  
+                  if (sidebarCollapsed && !isMobile) {
+                    // In collapsed mode on desktop, show only the group icon with tooltip
+                    return (
+                      <div key={key} className="relative group">
+                        <button
+                          onClick={() => {
+                            // If collapsed, expand sidebar when clicking on groups
+                            setSidebarCollapsed(false)
+                            toggleMenu(key)
+                          }}
+                          className={`
+                            w-full flex items-center justify-center px-4 py-3 rounded-xl transition-all duration-200
+                            group relative overflow-hidden
+                            ${
+                              isActiveGroup
+                                ? "bg-white text-gray-900 shadow-md border border-gray-600"
+                                : "text-gray-300 hover:bg-gray-800 hover:text-white border border-transparent hover:border-gray-600"
+                            }
+                          `}
+                        >
+                          <group.icon
+                            size={20}
+                            className={isActiveGroup ? "text-gray-900" : "text-gray-300 group-hover:text-white"}
+                          />
+                        </button>
+                        {/* Tooltip for collapsed state */}
+                        <div className="absolute left-full top-1/2 transform -translate-y-1/2 ml-2 px-2 py-1 bg-gray-800 text-white text-sm rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                          {group.name}
+                        </div>
+                      </div>
+                    )
+                  }
+                  
+                  // Expanded mode - normal functionality
                   return (
                     <div key={key} className="space-y-1">
                       <button
@@ -477,67 +632,90 @@ export default function Sidebar({ sidebarOpen, setSidebarOpen }) {
                 })
               )}
             </nav>
+            </div>
           </div>
 
           {/* User Profile - Fixed at bottom */}
-          <div className="p-4 border-t border-gray-700 flex-shrink-0">
+          <div className={`p-4 border-t border-gray-700 flex-shrink-0 ${sidebarCollapsed && !isMobile ? "px-2" : ""}`}>
             <div className="relative">
-              <button
-                onClick={() => setUserMenuOpen(!userMenuOpen)}
-                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-800 transition-all duration-200 cursor-pointer"
-              >
-                <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-gray-900 font-semibold shadow-md ring-2 ring-gray-600">
-                  {userData?.avatar ? (
-                    <img
-                      src={userData.avatar}
-                      alt={getUserDisplayName()}
-                      className="w-full h-full rounded-full object-cover"
+              {sidebarCollapsed && !isMobile ? (
+                /* Collapsed state on desktop - Just avatar centered */
+                <div className="flex justify-center">
+                  <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-gray-900 font-semibold shadow-md ring-2 ring-gray-600">
+                    {userData?.avatar ? (
+                      <img
+                        src={userData.avatar}
+                        alt={getUserDisplayName()}
+                        className="w-full h-full rounded-full object-cover"
+                      />
+                    ) : (
+                      getInitials(userData?.firstName, userData?.lastName)
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* Expanded state - Full profile with dropdown */
+                <>
+                  <button
+                    onClick={() => setUserMenuOpen(!userMenuOpen)}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-gray-800 transition-all duration-200 cursor-pointer"
+                  >
+                    <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-gray-900 font-semibold shadow-md ring-2 ring-gray-600">
+                      {userData?.avatar ? (
+                        <img
+                          src={userData.avatar}
+                          alt={getUserDisplayName()}
+                          className="w-full h-full rounded-full object-cover"
+                        />
+                      ) : (
+                        getInitials(userData?.firstName, userData?.lastName)
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0 text-left transition-all duration-300" style={{
+                      transitionDelay: "150ms"
+                    }}>
+                      <p className="font-medium text-white truncate whitespace-nowrap">{getUserDisplayName()}</p>
+                      <p className="text-sm text-gray-300 truncate whitespace-nowrap">{getUserEmail()}</p>
+                    </div>
+                    <ChevronDown
+                      size={16}
+                      className={`text-gray-300 transition-transform duration-200 ${
+                        userMenuOpen ? "rotate-180" : ""
+                      }`}
                     />
-                  ) : (
-                    getInitials(userData?.firstName, userData?.lastName)
-                  )}
-                </div>
-                <div className="flex-1 min-w-0 text-left">
-                  <p className="font-medium text-white truncate">{getUserDisplayName()}</p>
-                  <p className="text-sm text-gray-300 truncate">{getUserEmail()}</p>
-                </div>
-                <ChevronDown
-                  size={16}
-                  className={`text-gray-300 transition-transform duration-200 ${
-                    userMenuOpen ? "rotate-180" : ""
-                  }`}
-                />
-              </button>
+                  </button>
 
-              {/* User Menu Dropdown */}
-              <div
-                className={`absolute bottom-full left-0 right-0 mb-2 overflow-hidden transition-all duration-300 ${
-                  userMenuOpen ? "max-h-32 opacity-100" : "max-h-0 opacity-0"
-                }`}
-              >
-                <div className="bg-gray-800 border border-gray-600 rounded-xl p-2 space-y-1 shadow-lg">
-                  <button
-                    onClick={() => {
-                      handleNavigation("/profile")
-                      setUserMenuOpen(false)
-                    }}
-                    className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white rounded-lg transition-all duration-200"
+                  {/* User Menu Dropdown - Only show when expanded */}
+                  <div
+                    className={`absolute bottom-full left-0 right-0 mb-2 overflow-hidden transition-all duration-300 ${
+                      userMenuOpen ? "max-h-32 opacity-100" : "max-h-0 opacity-0"
+                    }`}
                   >
-                    <User size={16} className="text-gray-400" />
-                    <span>View Profile</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      handleLogout()
-                      setUserMenuOpen(false)
-                    }}
-                    className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-400 hover:bg-red-900/30 hover:text-red-300 rounded-lg transition-all duration-200"
-                  >
-                    <LogOut size={16} className="text-red-400" />
-                    <span>Logout</span>
-                  </button>
-                </div>
-              </div>
+                    <div className="bg-gray-800 border border-gray-600 rounded-xl p-2 space-y-1 shadow-lg">
+                      <button
+                        onClick={() => {
+                          handleNavigation("/profile")
+                          setUserMenuOpen(false)
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white rounded-lg transition-all duration-200"
+                      >
+                        <User size={16} className="text-gray-400" />
+                        <span>View Profile</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleLogout()
+                          setUserMenuOpen(false)
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-400 hover:bg-red-900/30 hover:text-red-300 rounded-lg transition-all duration-200"
+                      >
+                        <LogOut size={16} className="text-red-400" />
+                        <span>Logout</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

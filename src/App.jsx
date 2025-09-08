@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Sidebar from "./components/Sidebar"
 import Work from "./Page/Work"
 import TaskDetails from "./Page/TaskDetails"
@@ -23,23 +23,57 @@ import OverallProgress from "./Page/OverallProgress"
 import ManageEvents from "./Page/ManageEvents"
 import AllEvents from "./Page/AllEvents"
 function AppContent() {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true) // Start with expanded
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false) // New state for collapsed
   const location = useLocation()
 
   // Define paths where sidebar should be hidden
   const hideSidebarPaths = ["/login", "/reset-password"]
   const hideSidebar = hideSidebarPaths.includes(location.pathname)
 
+  // Handle screen size changes
+  useEffect(() => {
+    const handleResize = () => {
+      const isMobile = window.innerWidth < 1024
+      // On mobile, close sidebar completely. On desktop, keep it expanded
+      if (isMobile) {
+        setSidebarOpen(false)
+        setSidebarCollapsed(false)
+      } else {
+        setSidebarOpen(true)
+        // Keep collapsed state as is on desktop
+      }
+    }
+    
+    handleResize() // Initial check
+    window.addEventListener("resize", handleResize)
+    return () => window.removeEventListener("resize", handleResize)
+  }, [])
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* Sidebar (hidden on login/reset-password) */}
       {!hideSidebar && (
-        <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
+        <Sidebar 
+          sidebarOpen={sidebarOpen} 
+          setSidebarOpen={setSidebarOpen}
+          sidebarCollapsed={sidebarCollapsed}
+          setSidebarCollapsed={setSidebarCollapsed}
+          hideSidebar={hideSidebar} 
+        />
       )}
 
       {/* Main Content */}
-      <div className={!hideSidebar ? "lg:ml-72 min-h-screen" : "min-h-screen"}>
-        <Routes>
+      <div className={
+        !hideSidebar && sidebarOpen 
+          ? sidebarCollapsed 
+            ? "lg:ml-20 min-h-screen relative transition-all duration-300" 
+            : "lg:ml-72 min-h-screen relative transition-all duration-300"
+          : "min-h-screen relative"
+      }>
+        {/* Add padding when sidebar is completely closed on mobile to avoid overlap with menu button */}
+        <div className={!hideSidebar && !sidebarOpen ? "pt-20 pl-6 pr-6" : ""}>
+          <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<LoginPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
@@ -185,6 +219,7 @@ function AppContent() {
             </ProtectedRoute>
           } />
         </Routes>
+        </div>
 
         
         
